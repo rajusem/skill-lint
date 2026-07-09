@@ -1,4 +1,4 @@
-"""Unit tests for scan.py — bug fixes + R1 conditions."""
+"""Unit tests for scanner.py."""
 
 import json
 from pathlib import Path
