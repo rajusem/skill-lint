@@ -1,0 +1,40 @@
+# Local reference docs (not committed)
+local-docs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.venv/
+
+# Build
+dist/
+build/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+
+# uv
+uv.lock
+
+# Logs
+*.log

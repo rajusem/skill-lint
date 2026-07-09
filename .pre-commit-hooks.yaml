@@ -1,0 +1,7 @@
+- id: skill-lint
+  name: skill-lint
+  description: Lint AI skill files for quality issues
+  entry: skill-lint
+  language: python
+  pass_filenames: false
+  always_run: true
