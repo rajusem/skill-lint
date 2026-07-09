@@ -30,7 +30,7 @@ def test_scan_current_dir(tmp_path):
 def test_scan_nonexistent_path():
     runner = CliRunner()
     result = runner.invoke(main, ["/nonexistent/path"])
-    assert result.exit_code == 0
+    assert result.exit_code == 2
     assert "not found" in result.output.lower()
 
 

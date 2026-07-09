@@ -2,7 +2,7 @@
 
 Lint your AI skill files before your agents do.
 
-skill-lint scans CLAUDE.md, AGENTS.md, SKILL.md, .cursorrules, and agent/skill directories for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 39 rules across 8 categories with fix suggestions.
+skill-lint scans CLAUDE.md, AGENTS.md, SKILL.md, .cursorrules, and agent/skill directories for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 40 rules across 8 categories with fix suggestions.
 
 ## Quick Start
 

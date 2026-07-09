@@ -466,10 +466,11 @@ def run_scan(
     diff_baseline: bool = False,
     baseline_path: str | None = None,
     report: bool = False,
-) -> dict[str, int]:
+) -> dict[str, int] | None:
     """Scan skill and agent files for issues.
 
     Returns severity counts: {"warning": N, "suggestion": N, "info": N}.
+    Returns None on operational errors (path not found, clone failed).
     """
     import shutil
 
@@ -492,14 +493,14 @@ def run_scan(
             target = clone_dir
         except RuntimeError as e:
             console.print(f"[bold red]{e}[/bold red]")
-            return empty_counts
+            return None
     else:
         target = Path(path).resolve()
         display_path = str(target)
 
     if not target.exists():
         console.print(f"[bold red]Path not found: {path}[/bold red]")
-        return empty_counts
+        return None
 
     try:
         return _run_scan_on_dir(

@@ -94,6 +94,10 @@ def main(path, fmt, severity, verbose, disable, fail_on,
         report=report,
     )
 
+    # Exit 2 on operational errors (path not found, clone failed, etc.)
+    if counts is None:
+        sys.exit(2)
+
     if fail_on is not None:
         threshold = SEVERITY_ORDER[fail_on]
         has_failing = any(
