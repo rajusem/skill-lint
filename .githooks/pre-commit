@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Secret detection pre-commit hook for ai-helper
+# Secret detection pre-commit hook for skill-lint
 # Blocks commits containing secrets, keys, tokens, or sensitive files.
 
 set -euo pipefail
