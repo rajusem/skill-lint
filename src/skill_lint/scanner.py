@@ -325,19 +325,31 @@ BASELINE_FILENAME = ".skill-lint-baseline.json"
 
 
 def _load_config(target: Path) -> dict:
-    """Load per-project config from .skill-lint.yaml."""
+    """Load config from .skill-lint.yaml or pyproject.toml [tool.skill-lint]."""
+    # Priority: .skill-lint.yaml > pyproject.toml [tool.skill-lint]
     config_path = target / CONFIG_FILENAME
-    if not config_path.exists():
-        return {}
-    try:
-        import yaml
+    if config_path.exists():
+        try:
+            import yaml
 
-        return yaml.safe_load(config_path.read_text()) or {}
-    except Exception:
-        console.print(
-            f"[yellow]Warning: could not parse {CONFIG_FILENAME}[/yellow]"
-        )
-        return {}
+            return yaml.safe_load(config_path.read_text()) or {}
+        except Exception:
+            console.print(
+                f"[yellow]Warning: could not parse {CONFIG_FILENAME}[/yellow]"
+            )
+            return {}
+
+    pyproject_path = target / "pyproject.toml"
+    if pyproject_path.exists():
+        try:
+            import tomllib
+
+            data = tomllib.loads(pyproject_path.read_text())
+            return data.get("tool", {}).get("skill-lint", {})
+        except Exception:
+            return {}
+
+    return {}
 
 
 def _baseline_key(issue: Issue) -> str:

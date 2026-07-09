@@ -68,7 +68,7 @@ skill-lint . --diff            # Show only NEW issues
 
 ## Configuration
 
-Create `.skill-lint.yaml` in your project root:
+### Option 1: `.skill-lint.yaml`
 
 ```yaml
 disable:
@@ -76,6 +76,44 @@ disable:
   - OQUAL001
 fail_on: warning
 ```
+
+### Option 2: `pyproject.toml`
+
+```toml
+[tool.skill-lint]
+disable = ["HRISK002", "OQUAL001"]
+fail_on = "warning"
+```
+
+Precedence: CLI flags > `.skill-lint.yaml` > `pyproject.toml`
+
+## Custom Rules
+
+Write your own rules by extending the `Rule` base class:
+
+```python
+from skill_lint.scanner import Rule, Issue, register_rule
+
+class MyRule(Rule):
+    id = "CUSTOM_001"
+    description = "Check for company-specific patterns"
+
+    def check(self, ctx):
+        issues = []
+        if "legacy API" in ctx.content:
+            issues.append(Issue(
+                category="best-practice",
+                severity="suggestion",
+                message="References legacy API",
+                fix="Use the new v2 API instead",
+                rule_id=self.id,
+            ))
+        return issues
+
+register_rule(MyRule())
+```
+
+Custom rule IDs must use the `CUSTOM_` prefix. The `ctx` object provides: `content`, `lines`, `regions`, `filepath`, `root`, `tokens`, and `content_text` (code-fence-filtered).
 
 ## Philosophy
 
