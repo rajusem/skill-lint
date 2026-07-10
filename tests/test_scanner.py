@@ -29,6 +29,7 @@ from skill_lint.scanner import (
     _check_token_waste,
     _compute_score,
     _count_hedging,
+    _discover_files,
     _find_conflicting_instructions,
     _find_duplicate_instructions,
     _has_skill_delegation,
@@ -2310,3 +2311,138 @@ class TestInlineSuppression:
         _analyze_file(f, tmp_path)
         # Inline suppression is applied in _run_scan_on_dir,
         # not _analyze_file — parsing verified in tests above
+
+
+# ── _discover_files ────────────────────────────────────────────────
+
+
+class TestDiscoverFiles:
+    def test_standard_layout(self, tmp_path):
+        d = tmp_path / "skills" / "foo"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Foo skill")
+        found = _discover_files(tmp_path)
+        assert any(f.name == "SKILL.md" for f in found)
+
+    def test_nested_plugins_layout(self, tmp_path):
+        d = tmp_path / "plugins" / "bar" / "skills" / "baz"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Baz skill")
+        found = _discover_files(tmp_path)
+        assert any(f.name == "SKILL.md" for f in found)
+
+    def test_both_layouts_dedup(self, tmp_path):
+        d1 = tmp_path / "skills" / "foo"
+        d1.mkdir(parents=True)
+        (d1 / "SKILL.md").write_text("# Foo")
+        d2 = tmp_path / "plugins" / "bar" / "skills" / "baz"
+        d2.mkdir(parents=True)
+        (d2 / "SKILL.md").write_text("# Baz")
+        found = _discover_files(tmp_path)
+        skill_files = [f for f in found if f.name == "SKILL.md"]
+        assert len(skill_files) == 2
+        assert len(set(skill_files)) == 2
+
+    def test_skip_node_modules(self, tmp_path):
+        d = tmp_path / "node_modules" / "pkg"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Should be skipped")
+        found = _discover_files(tmp_path)
+        assert not any(f.name == "SKILL.md" for f in found)
+
+    def test_skip_git_dir(self, tmp_path):
+        d = tmp_path / ".git" / "objects"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Should be skipped")
+        found = _discover_files(tmp_path)
+        assert not any(f.name == "SKILL.md" for f in found)
+
+    def test_skip_venv(self, tmp_path):
+        d = tmp_path / "venv" / "lib"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Should be skipped")
+        found = _discover_files(tmp_path)
+        assert not any(f.name == "SKILL.md" for f in found)
+
+    def test_deeply_nested(self, tmp_path):
+        d = tmp_path / "a" / "b" / "c" / "d" / "skills" / "e"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Deep skill")
+        found = _discover_files(tmp_path)
+        assert any(f.name == "SKILL.md" for f in found)
+
+    def test_empty_dir_no_crash(self, tmp_path):
+        found = _discover_files(tmp_path)
+        assert isinstance(found, list)
+
+
+# ── HRISK002 Root Governance ───────────────────────────────────────
+
+
+class TestHRISK002RootGovernance:
+    def _make_long_content(self, n=55):
+        return "\n".join([f"instruction line {i}" for i in range(n)])
+
+    def test_root_agents_md_no_hrisk002(self, tmp_path):
+        agents = tmp_path / "AGENTS.md"
+        content = self._make_long_content()
+        agents.write_text(content)
+        result = ScanResult(file="AGENTS.md")
+        lines = content.splitlines()
+        _check_hallucination_risks(result, content, lines, agents, tmp_path)
+        assert not any(i.rule_id == "HRISK002" for i in result.issues)
+
+    def test_root_cursorrules_no_hrisk002(self, tmp_path):
+        cursorrules = tmp_path / ".cursorrules"
+        content = self._make_long_content()
+        cursorrules.write_text(content)
+        result = ScanResult(file=".cursorrules")
+        lines = content.splitlines()
+        _check_hallucination_risks(result, content, lines, cursorrules, tmp_path)
+        assert not any(i.rule_id == "HRISK002" for i in result.issues)
+
+    def test_root_claude_md_still_fires(self, tmp_path):
+        claude = tmp_path / "CLAUDE.md"
+        content = self._make_long_content()
+        claude.write_text(content)
+        result = ScanResult(file="CLAUDE.md")
+        lines = content.splitlines()
+        _check_hallucination_risks(result, content, lines, claude, tmp_path)
+        assert any(i.rule_id == "HRISK002" for i in result.issues)
+
+
+# ── BPRAC003 Root .cursorrules ─────────────────────────────────────
+
+
+class TestBPRAC003RootCursorrules:
+    def test_root_cursorrules_no_bprac003(self, tmp_path):
+        cursorrules = tmp_path / ".cursorrules"
+        content = "\n".join([f"line {i}" for i in range(25)])
+        content += "\nStep 1: understand\nIteration loop\nRetry until done\n"
+        cursorrules.write_text(content)
+        result = ScanResult(file=".cursorrules")
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        _check_termination_conditions(
+            result, content, lines, regions, cursorrules, tmp_path,
+        )
+        assert not any(i.rule_id == "BPRAC003" for i in result.issues)
+
+
+# ── Delegation with Nested Skills ──────────────────────────────────
+
+
+class TestDelegationNestedSkills:
+    def test_delegation_nested_plugins(self, tmp_path):
+        d = tmp_path / "plugins" / "bar" / "skills" / "baz"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Baz skill")
+        content = "Follow the baz skill for details."
+        assert _has_skill_delegation(content, tmp_path / "agent.md", tmp_path)
+
+    def test_delegation_skip_node_modules(self, tmp_path):
+        d = tmp_path / "node_modules" / "pkg"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Vendored skill")
+        content = "Follow the pkg skill for details."
+        assert not _has_skill_delegation(content, tmp_path / "agent.md", tmp_path)

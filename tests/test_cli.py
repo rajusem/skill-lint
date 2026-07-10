@@ -94,3 +94,13 @@ def test_report_mode(tmp_path):
     runner = CliRunner()
     result = runner.invoke(main, [str(tmp_path), "--report"])
     assert result.exit_code == 0
+
+
+def test_nested_skill_discovery(tmp_path):
+    d = tmp_path / "plugins" / "my-plugin" / "skills" / "review"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text("# Review\nReview code changes.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path)])
+    assert result.exit_code == 0
+    assert "SKILL.md" in result.output

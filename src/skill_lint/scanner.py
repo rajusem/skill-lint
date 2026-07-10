@@ -64,6 +64,11 @@ SKILL_DIRS = [
     "skills",
 ]
 
+_SKIP_DIRS = {
+    "node_modules", ".venv", "venv", "vendor",
+    "dist", "build", "_build", "__pycache__", ".git",
+}
+
 
 def _parse_inline_suppressions(
     lines: list[str], regions: list[str],
@@ -213,10 +218,10 @@ def _check_cross_file_conflicts(
 
 
 def _is_root_reference_doc(filepath: Path, root: Path) -> bool:
-    """True if filepath is a root-level reference doc (not an agent prompt)."""
+    """True if filepath is a root-level governance doc (not an agent prompt)."""
     return (
         filepath.parent == root
-        and filepath.name.lower() == "agents.md"
+        and filepath.name.lower() in {"agents.md", ".cursorrules"}
     )
 
 
@@ -238,9 +243,8 @@ def _has_skill_delegation(
     if not any(p.search(content) for p in delegation_patterns):
         return False
     if filepath and root:
-        skill_dirs = [root / d for d in ("skills", ".opencode/skills", ".claude/skills")]
-        for d in skill_dirs:
-            if d.exists() and any(d.rglob("SKILL.md")):
+        for f in root.rglob("SKILL.md"):
+            if not _SKIP_DIRS.intersection(f.parts):
                 return True
         return False
     return True
@@ -690,6 +694,10 @@ def _discover_files(root: Path) -> list[Path]:
         if d.exists():
             files.extend(sorted(d.rglob("SKILL.md")))
 
+    for f in sorted(root.rglob("SKILL.md")):
+        if not _SKIP_DIRS.intersection(f.parts):
+            files.append(f)
+
     return list(dict.fromkeys(files))
 
 
@@ -1119,7 +1127,8 @@ def _check_hallucination_risks(
         content, re.IGNORECASE,
     ))
     delegates = _has_skill_delegation(content, filepath, root)
-    if not has_output_format and len(lines) > 50 and not delegates:
+    is_governance = filepath and root and _is_root_reference_doc(filepath, root)
+    if not has_output_format and len(lines) > 50 and not delegates and not is_governance:
         result.issues.append(Issue(
             category="hallucination-risk",
             severity="suggestion",
