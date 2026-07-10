@@ -2459,3 +2459,68 @@ class TestDelegationNestedSkills:
         (d / "SKILL.md").write_text("# Vendored skill")
         content = "Follow the pkg skill for details."
         assert not _has_skill_delegation(content, tmp_path / "agent.md", tmp_path)
+
+
+# ── New file pattern discovery ─────────────────────────────────────
+
+
+class TestDiscoverNewPatterns:
+    def test_discover_gemini_md(self, tmp_path):
+        (tmp_path / "GEMINI.md").write_text("# Gemini instructions")
+        found = _discover_files(tmp_path)
+        assert any(f.name == "GEMINI.md" for f in found)
+
+    def test_discover_copilot_instructions(self, tmp_path):
+        d = tmp_path / ".github"
+        d.mkdir()
+        (d / "copilot-instructions.md").write_text("# Copilot rules")
+        found = _discover_files(tmp_path)
+        assert any(f.name == "copilot-instructions.md" for f in found)
+
+    def test_discover_gh_instructions_dir(self, tmp_path):
+        d = tmp_path / ".github" / "instructions"
+        d.mkdir(parents=True)
+        (d / "coding.instructions.md").write_text("# Coding rules")
+        found = _discover_files(tmp_path)
+        assert any(f.name == "coding.instructions.md" for f in found)
+
+    def test_discover_gh_instructions_excludes_non_md(self, tmp_path):
+        d = tmp_path / ".github" / "instructions"
+        d.mkdir(parents=True)
+        (d / "README.md").write_text("# Not an instruction file")
+        (d / "coding.instructions.md").write_text("# Coding rules")
+        found = _discover_files(tmp_path)
+        names = [f.name for f in found]
+        assert "coding.instructions.md" in names
+        assert "README.md" not in names
+
+    def test_discover_dot_agents_dir(self, tmp_path):
+        d = tmp_path / ".agents"
+        d.mkdir()
+        (d / "review.md").write_text("# Review agent")
+        found = _discover_files(tmp_path)
+        assert any(f.name == "review.md" for f in found)
+
+    def test_discover_dot_agents_skills(self, tmp_path):
+        d = tmp_path / ".agents" / "skills" / "foo"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("# Foo skill")
+        found = _discover_files(tmp_path)
+        assert any(f.name == "SKILL.md" for f in found)
+
+
+# ── Root directive/reference classification for new patterns ───────
+
+
+class TestRootClassificationNewPatterns:
+    def test_root_gemini_md_is_directive(self, tmp_path):
+        f = tmp_path / "GEMINI.md"
+        assert _is_root_directive_file(f, tmp_path)
+
+    def test_root_gemini_md_is_reference(self, tmp_path):
+        f = tmp_path / "GEMINI.md"
+        assert _is_root_reference_doc(f, tmp_path)
+
+    def test_copilot_instructions_is_directive(self, tmp_path):
+        f = tmp_path / ".github" / "copilot-instructions.md"
+        assert _is_root_directive_file(f, tmp_path)

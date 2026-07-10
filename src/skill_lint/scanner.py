@@ -49,12 +49,15 @@ SKILL_PATTERNS = [
     "SKILL.md",
     "CLAUDE.md",
     "AGENTS.md",
+    "GEMINI.md",
     ".cursorrules",
+    ".github/copilot-instructions.md",
 ]
 
 AGENT_DIRS = [
     ".opencode/agents",
     ".claude/agents",
+    ".agents",
     "agents",
 ]
 
@@ -99,10 +102,13 @@ def _parse_inline_suppressions(
 
 def _is_root_directive_file(filepath: Path, root: Path) -> bool:
     """True if file is a root-level governance doc (not root SKILL.md)."""
-    return (
-        filepath.parent == root
-        and filepath.name.lower() in {"claude.md", "agents.md", ".cursorrules"}
-    )
+    if filepath.parent == root and filepath.name.lower() in {
+        "claude.md", "agents.md", "gemini.md", ".cursorrules",
+    }:
+        return True
+    if filepath == root / ".github" / "copilot-instructions.md":
+        return True
+    return False
 
 
 def _read_content_text(filepath: Path) -> str:
@@ -219,10 +225,13 @@ def _check_cross_file_conflicts(
 
 def _is_root_reference_doc(filepath: Path, root: Path) -> bool:
     """True if filepath is a root-level governance doc (not an agent prompt)."""
-    return (
-        filepath.parent == root
-        and filepath.name.lower() in {"agents.md", ".cursorrules"}
-    )
+    if filepath.parent == root and filepath.name.lower() in {
+        "agents.md", "gemini.md", ".cursorrules",
+    }:
+        return True
+    if filepath == root / ".github" / "copilot-instructions.md":
+        return True
+    return False
 
 
 def _has_skill_delegation(
@@ -544,8 +553,9 @@ def _run_scan_on_dir(
         if not files:
             console.print("[yellow]No skill or agent files found.[/yellow]")
             console.print(
-                "Looked for: SKILL.md, CLAUDE.md, AGENTS.md, .cursorrules,"
-                " agents/*.md, skills/*/SKILL.md"
+                "Looked for: SKILL.md, CLAUDE.md, AGENTS.md, GEMINI.md,"
+                " .cursorrules, .github/copilot-instructions.md,"
+                " .agents/*.md, agents/*.md, skills/*/SKILL.md"
             )
             return empty_counts
 
@@ -694,6 +704,10 @@ def _discover_files(root: Path) -> list[Path]:
         d = root / agent_dir
         if d.exists():
             files.extend(sorted(d.glob("*.md")))
+
+    gh_instr = root / ".github" / "instructions"
+    if gh_instr.exists():
+        files.extend(sorted(gh_instr.glob("*.instructions.md")))
 
     for skill_dir in SKILL_DIRS:
         d = root / skill_dir
