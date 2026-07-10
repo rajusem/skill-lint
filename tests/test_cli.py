@@ -135,3 +135,12 @@ def test_scan_single_file_json(tmp_path):
     import json
     data = json.loads(result.output)
     assert isinstance(data, list)
+
+
+def test_scan_gemini_md(tmp_path):
+    f = tmp_path / "GEMINI.md"
+    f.write_text("# Project\nGemini CLI instructions.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path)])
+    assert result.exit_code == 0
+    assert "GEMINI.md" in result.output

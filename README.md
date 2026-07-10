@@ -2,7 +2,7 @@
 
 Linter for AI instruction files — skills, prompts, and agent specs.
 
-skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, SKILL.md, .cursorrules, and agent/skill directories) for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 40 rules across 8 categories with fix suggestions.
+skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md, .cursorrules, .github/copilot-instructions.md, .github/instructions/, and agent/skill directories) for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 40 rules across 8 categories with fix suggestions.
 
 ## Quick Start
 

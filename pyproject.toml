@@ -5,10 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "skill-lint"
 version = "0.1.0"
-description = "Linter for AI skill files (SKILL.md, CLAUDE.md, AGENTS.md, .cursorrules)"
+description = "Linter for AI instruction files — skills, prompts, and agent specs"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
+keywords = ["linter", "ai", "skills", "prompts", "agents", "claude", "cursor", "copilot", "gemini"]
 dependencies = [
     "click>=8.1",
     "pyyaml>=6.0",
@@ -25,6 +26,7 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
     "Topic :: Software Development :: Testing",
 ]
+authors = [{name = "Raj Zalavadia"}]
 
 [project.scripts]
 skill-lint = "skill_lint.cli:main"

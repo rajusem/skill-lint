@@ -1,6 +1,6 @@
 # skill-lint
 
-Linter for AI skill files (SKILL.md, CLAUDE.md, AGENTS.md, .cursorrules).
+Linter for AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md, .cursorrules, .github/copilot-instructions.md).
 
 ## Commands
 
@@ -16,7 +16,7 @@ uv run ruff check src/ # lint
 ```
 src/skill_lint/
 ├── cli.py              # CLI entry point (Click)
-└── scanner.py          # Scanner engine (39 rules across 8 categories)
+└── scanner.py          # Scanner engine (40 rules across 8 categories)
 tests/
 ├── test_scanner.py     # Scanner tests
 └── test_cli.py         # CLI tests
