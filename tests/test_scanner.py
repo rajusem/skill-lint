@@ -195,6 +195,19 @@ class TestLongLineSkip:
         ]
         assert len(long_line_issues) == 0
 
+    def test_long_line_with_mid_url_skipped(self):
+        lines = [
+            "Check out this reference API documentation: "
+            "https://example.com/" + "a" * 200
+        ]
+        regions = _parse_content_regions(lines)
+        result = self._make_result()
+        _check_token_waste(result, "\n".join(lines), lines, regions)
+        long_line_issues = [
+            i for i in result.issues if "chars" in i.message
+        ]
+        assert len(long_line_issues) == 0
+
 
 # ── Bug 3: Duplicate detection ─────────────────────────────────────
 

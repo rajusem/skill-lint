@@ -104,3 +104,34 @@ def test_nested_skill_discovery(tmp_path):
     result = runner.invoke(main, [str(tmp_path)])
     assert result.exit_code == 0
     assert "SKILL.md" in result.output
+
+
+def test_scan_single_claude_md(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Project\nSimple project context.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(f)])
+    assert result.exit_code == 0
+    assert "CLAUDE.md" in result.output
+
+
+def test_scan_single_skill_md(tmp_path):
+    d = tmp_path / "skills" / "foo"
+    d.mkdir(parents=True)
+    f = d / "SKILL.md"
+    f.write_text("# Foo\nDo foo things.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(f)])
+    assert result.exit_code == 0
+    assert "SKILL.md" in result.output
+
+
+def test_scan_single_file_json(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Project\nSimple.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(f), "--format", "json"])
+    assert result.exit_code == 0
+    import json
+    data = json.loads(result.output)
+    assert isinstance(data, list)

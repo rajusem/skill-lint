@@ -500,7 +500,7 @@ def run_scan(
             return None
     else:
         target = Path(path).resolve()
-        display_path = str(target)
+        display_path = str(target.parent) if target.is_file() else str(target)
 
     if not target.exists():
         console.print(f"[bold red]Path not found: {path}[/bold red]")
@@ -534,8 +534,23 @@ def _run_scan_on_dir(
         "warning": 0, "suggestion": 0, "info": 0,
     }
 
+    # Handle single-file scanning
+    if target.is_file():
+        root = target.parent
+        files = [target]
+    else:
+        root = target
+        files = _discover_files(target)
+        if not files:
+            console.print("[yellow]No skill or agent files found.[/yellow]")
+            console.print(
+                "Looked for: SKILL.md, CLAUDE.md, AGENTS.md, .cursorrules,"
+                " agents/*.md, skills/*/SKILL.md"
+            )
+            return empty_counts
+
     # Load project config and merge with CLI args (CLI wins)
-    config = _load_config(target)
+    config = _load_config(root)
     if disabled_rules is None:
         cfg_disable = config.get("disable", [])
         if cfg_disable:
@@ -544,15 +559,6 @@ def _run_scan_on_dir(
             }
     if fail_on is None:
         fail_on = config.get("fail_on")
-
-    files = _discover_files(target)
-    if not files:
-        console.print("[yellow]No skill or agent files found.[/yellow]")
-        console.print(
-            "Looked for: SKILL.md, CLAUDE.md, AGENTS.md, .cursorrules,"
-            " agents/*.md, skills/*/SKILL.md"
-        )
-        return empty_counts
 
     if fmt == "table":
         console.print()
@@ -564,11 +570,11 @@ def _run_scan_on_dir(
 
     results = []
     for filepath in files:
-        result = _analyze_file(filepath, target)
+        result = _analyze_file(filepath, root)
         results.append(result)
 
     # Cross-file conflict detection (before disable/baseline pipeline)
-    _check_cross_file_conflicts(files, results, target)
+    _check_cross_file_conflicts(files, results, root)
 
     # Inline suppression (before disable/baseline pipeline)
     inline_suppressed = 0
@@ -1029,7 +1035,7 @@ def _check_token_waste(
     for i, line in enumerate(lines):
         if rgns[i] != "content":
             continue
-        if len(line) > 200 and not line.startswith("http"):
+        if len(line) > 200 and "http" not in line:
             result.issues.append(Issue(
                 category="token-cost",
                 severity="info",
