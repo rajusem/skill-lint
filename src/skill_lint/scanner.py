@@ -1546,14 +1546,16 @@ def _extract_model_tier(content: str) -> str | None:
     if not match:
         return None
     name = match.group(1).split("/")[-1].split("@")[0].lower()
-    if "opus" in name:
-        return "opus"
-    if "sonnet" in name:
-        return "sonnet"
-    if "haiku" in name:
-        return "haiku"
-    if "fable" in name:
-        return "fable"
+    if name.startswith(("o1", "o3")):
+        return "medium" if "-mini" in name else "high"
+    if any(k in name for k in ("-mini", "-nano", "haiku", "flash-lite")):
+        return "low"
+    if any(k in name for k in ("opus", "pro", "ultra")):
+        return "high"
+    if re.search(r"gpt-(?:4o|4\.1|5)(?![\d.])", name):
+        return "high"
+    if any(k in name for k in ("sonnet", "fable", "flash", "gpt")):
+        return "medium"
     return None
 
 
@@ -1598,27 +1600,29 @@ def _check_best_practices(
     if model_tier:
         tok = result.token_estimate
         line_count = len(lines)
-        if model_tier == "haiku" and (tok > 1500 or line_count > 250):
+        fm_match = re.search(r"^model:\s*(\S+)", content[:500], re.MULTILINE)
+        model_name = fm_match.group(1) if fm_match else "unknown"
+        if model_tier == "low" and (tok > 1500 or line_count > 250):
             result.issues.append(Issue(
                 category="best-practice",
                 severity="suggestion",
-                message=f"Haiku specified but skill has"
+                message=f"Lightweight model ({model_name}) with"
                 f" {tok} tokens / {line_count} lines"
-                " — may exceed Haiku's capability",
-                fix="Consider sonnet for complex skills."
+                " — may exceed model capability",
+                fix="Consider a mid-tier model for complex skills."
                 " Smaller models struggle with long"
                 " instructions and multi-step reasoning",
                 rule_id="BPRAC004",
             ))
-        elif model_tier == "opus" and tok < 500 and line_count < 50:
+        elif model_tier == "high" and tok < 500 and line_count < 50:
             result.issues.append(Issue(
                 category="best-practice",
                 severity="info",
-                message=f"Opus specified but skill is only"
+                message=f"Premium model ({model_name}) with only"
                 f" {tok} tokens / {line_count} lines"
-                " — sonnet or haiku would suffice",
-                fix="Consider sonnet or haiku for simple"
-                " tasks — saves 3-5x on inference cost",
+                " — a lighter model would suffice",
+                fix="Consider a mid-tier or lightweight model for"
+                " simple tasks — saves 3-5x on inference cost",
                 rule_id="BPRAC005",
             ))
 
@@ -1699,6 +1703,14 @@ def _check_broken_references(
         if _example_list.search(ref_line) and ref in ref_line:
             m = _example_list.search(ref_line)
             if m and ref_line.index(ref) > m.start():
+                continue
+
+        # Skip refs whose parent directory doesn't exist (template placeholders)
+        ref_path = Path(ref)
+        if ref_path.parent != Path("."):
+            parent_local = filepath.parent / ref_path.parent
+            parent_root = project_root / ref_path.parent
+            if not parent_local.exists() and not parent_root.exists():
                 continue
 
         seen.add(ref)

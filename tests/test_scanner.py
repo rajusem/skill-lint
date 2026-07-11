@@ -30,6 +30,7 @@ from skill_lint.scanner import (
     _compute_score,
     _count_hedging,
     _discover_files,
+    _extract_model_tier,
     _find_conflicting_instructions,
     _find_duplicate_instructions,
     _has_skill_delegation,
@@ -2524,3 +2525,106 @@ class TestRootClassificationNewPatterns:
     def test_copilot_instructions_is_directive(self, tmp_path):
         f = tmp_path / ".github" / "copilot-instructions.md"
         assert _is_root_directive_file(f, tmp_path)
+
+
+# ── STRUCT006 template placeholder skip ────────────────────────────
+
+
+class TestSTRUCT006TemplatePlaceholder:
+    def test_skip_reference_dir_missing(self, tmp_path):
+        skill = tmp_path / "SKILL.md"
+        skill.write_text("Check references/api.md for details.\n")
+        result = ScanResult(file="SKILL.md")
+        content = skill.read_text()
+        regions = _parse_content_regions(content.splitlines())
+        _check_broken_references(result, content, skill, regions)
+        assert not any(i.rule_id == "STRUCT006" for i in result.issues)
+
+    def test_skip_nested_template_path(self, tmp_path):
+        skill = tmp_path / "SKILL.md"
+        skill.write_text(
+            "See scripts/pr-status/results/thread-N.md for details.\n"
+        )
+        result = ScanResult(file="SKILL.md")
+        content = skill.read_text()
+        regions = _parse_content_regions(content.splitlines())
+        _check_broken_references(result, content, skill, regions)
+        assert not any(i.rule_id == "STRUCT006" for i in result.issues)
+
+    def test_still_fires_bare_filename(self, tmp_path):
+        skill = tmp_path / "SKILL.md"
+        skill.write_text("Check releasesync_functional_test.go for details.\n")
+        result = ScanResult(file="SKILL.md")
+        content = skill.read_text()
+        regions = _parse_content_regions(content.splitlines())
+        _check_broken_references(result, content, skill, regions)
+        assert any(i.rule_id == "STRUCT006" for i in result.issues)
+
+
+# ── Multi-vendor model tier detection ──────────────────────────────
+
+
+class TestMultiVendorModelTier:
+    def _fm(self, model):
+        return f"---\nmodel: {model}\n---\n# Skill\nDo things.\n"
+
+    def test_gpt_4o_is_high(self):
+        assert _extract_model_tier(self._fm("gpt-4o")) == "high"
+
+    def test_gpt_4o_mini_is_low(self):
+        assert _extract_model_tier(self._fm("gpt-4o-mini")) == "low"
+
+    def test_gpt_5_is_high(self):
+        assert _extract_model_tier(self._fm("gpt-5")) == "high"
+
+    def test_gpt_5_4_is_medium(self):
+        assert _extract_model_tier(self._fm("gpt-5.4")) == "medium"
+
+    def test_gemini_pro_is_high(self):
+        assert _extract_model_tier(self._fm("gemini-pro")) == "high"
+
+    def test_gemini_flash_is_medium(self):
+        assert _extract_model_tier(self._fm("gemini-flash")) == "medium"
+
+    def test_gemini_flash_lite_is_low(self):
+        assert _extract_model_tier(self._fm("gemini-flash-lite")) == "low"
+
+    def test_claude_opus_still_high(self):
+        assert _extract_model_tier(self._fm("claude-opus-4.6")) == "high"
+
+    def test_o1_mini_is_medium(self):
+        assert _extract_model_tier(self._fm("o1-mini")) == "medium"
+
+    def test_o3_is_high(self):
+        assert _extract_model_tier(self._fm("o3")) == "high"
+
+    def test_gemini_not_matched_as_mini(self):
+        assert _extract_model_tier(self._fm("gemini-pro")) == "high"
+
+    def test_unknown_model_returns_none(self):
+        assert _extract_model_tier(self._fm("my-custom-llm")) is None
+
+
+# ── BPRAC004/005 with multi-vendor models ──────────────────────────
+
+
+class TestBPRAC004MultiVendor:
+    def test_gpt_mini_high_tokens_flagged(self, tmp_path):
+        skill = tmp_path / "SKILL.md"
+        content = "---\nmodel: gpt-4o-mini\n---\n" + "\n".join(
+            [f"instruction line {i}" for i in range(300)]
+        )
+        skill.write_text(content)
+        result = ScanResult(file="SKILL.md")
+        lines = content.splitlines()
+        _check_best_practices(result, content, lines)
+        assert any(i.rule_id == "BPRAC004" for i in result.issues)
+
+    def test_gpt_4o_simple_flagged(self, tmp_path):
+        skill = tmp_path / "SKILL.md"
+        content = "---\nmodel: gpt-4o\n---\n# Simple\nDo one thing.\n"
+        skill.write_text(content)
+        result = ScanResult(file="SKILL.md")
+        lines = content.splitlines()
+        _check_best_practices(result, content, lines)
+        assert any(i.rule_id == "BPRAC005" for i in result.issues)
