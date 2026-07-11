@@ -75,6 +75,9 @@ disable:
   - HRISK002
   - OQUAL001
 fail_on: warning
+thresholds:
+  max_tokens: 8000   # default: 5000
+  max_lines: 800     # default: 500
 ```
 
 ### Option 2: `pyproject.toml`
@@ -83,6 +86,7 @@ fail_on: warning
 [tool.skill-lint]
 disable = ["HRISK002", "OQUAL001"]
 fail_on = "warning"
+thresholds = {max_tokens = 8000, max_lines = 800}
 ```
 
 Precedence: CLI flags > `.skill-lint.yaml` > `pyproject.toml`

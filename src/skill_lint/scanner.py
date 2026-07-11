@@ -569,6 +569,7 @@ def _run_scan_on_dir(
             }
     if fail_on is None:
         fail_on = config.get("fail_on")
+    thresholds = config.get("thresholds", {})
 
     if fmt == "table":
         console.print()
@@ -580,7 +581,7 @@ def _run_scan_on_dir(
 
     results = []
     for filepath in files:
-        result = _analyze_file(filepath, root)
+        result = _analyze_file(filepath, root, thresholds)
         results.append(result)
 
     # Cross-file conflict detection (before disable/baseline pipeline)
@@ -725,7 +726,9 @@ def _estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
-def _analyze_file(filepath: Path, root: Path) -> ScanResult:
+def _analyze_file(
+    filepath: Path, root: Path, thresholds: dict | None = None,
+) -> ScanResult:
     rel_path = str(filepath.relative_to(root))
 
     try:
@@ -786,7 +789,7 @@ def _analyze_file(filepath: Path, root: Path) -> ScanResult:
             _in_fence = True
     content_text = "\n".join(_ct_lines)
 
-    _check_size(result, content, tokens, lines)
+    _check_size(result, content, tokens, lines, thresholds)
     _check_structure(result, content, lines, regions)
     _check_description_quality(result, content)
     _check_token_waste(result, content, lines, regions, content_text)
@@ -872,25 +875,35 @@ def _parse_content_regions(lines: list[str]) -> list[str]:
     return regions
 
 
+def _int_threshold(th: dict, key: str, default: int) -> int:
+    val = th.get(key, default)
+    return val if isinstance(val, int) else default
+
+
 def _check_size(
-    result: ScanResult, content: str, tokens: int, lines: list[str]
+    result: ScanResult, content: str, tokens: int, lines: list[str],
+    thresholds: dict | None = None,
 ) -> None:
+    th = thresholds or {}
+    max_lines = _int_threshold(th, "max_lines", 500)
+    max_tokens = _int_threshold(th, "max_tokens", 5000)
     line_count = len(lines)
-    if line_count > 500:
+    if line_count > max_lines:
         result.issues.append(Issue(
             category="token-cost",
             severity="warning",
-            message=f"File is {line_count} lines — exceeds 500-line"
+            message=f"File is {line_count} lines — exceeds {max_lines}-line"
             " limit recommended by Anthropic and Cursor",
             fix="Split into focused sections. Move reference material"
             " to separate files loaded on demand",
             rule_id="TCOST001",
         ))
-    elif tokens > 5000:
+    elif tokens > max_tokens:
         result.issues.append(Issue(
             category="token-cost",
             severity="warning",
-            message=f"File is ~{tokens} tokens — costs this on EVERY turn",
+            message=f"File is ~{tokens} tokens (limit: {max_tokens})"
+            " — costs this on EVERY turn",
             fix="Split into focused sections or move rarely-needed"
             " content to separate files read on demand",
             rule_id="TCOST002",

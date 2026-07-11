@@ -24,6 +24,7 @@ from skill_lint.scanner import (
     _check_output_quality,
     _check_redundant_context,
     _check_role_identity,
+    _check_size,
     _check_structure,
     _check_termination_conditions,
     _check_token_waste,
@@ -2628,3 +2629,62 @@ class TestBPRAC004MultiVendor:
         lines = content.splitlines()
         _check_best_practices(result, content, lines)
         assert any(i.rule_id == "BPRAC005" for i in result.issues)
+
+
+# ── Configurable TCOST thresholds ──────────────────────────────────
+
+
+class TestConfigurableThresholds:
+    def _make_content(self, tokens=0, lines=10):
+        return "\n".join([f"instruction line {i} " + "word " * 3 for i in range(lines)])
+
+    def test_custom_max_tokens_no_tcost002(self):
+        lines = [f"line {i}" for i in range(50)]
+        content = "\n".join(lines)
+        _check_size(result := ScanResult(file="test.md"),
+                     content, 6000, lines, {"max_tokens": 8000})
+        assert not any(i.rule_id == "TCOST002" for i in result.issues)
+
+    def test_custom_max_tokens_still_fires(self):
+        lines = [f"line {i}" for i in range(50)]
+        content = "\n".join(lines)
+        _check_size(result := ScanResult(file="test.md"),
+                     content, 9000, lines, {"max_tokens": 8000})
+        assert any(i.rule_id == "TCOST002" for i in result.issues)
+
+    def test_custom_max_lines_no_tcost001(self):
+        lines = [f"line {i}" for i in range(600)]
+        content = "\n".join(lines)
+        _check_size(result := ScanResult(file="test.md"),
+                     content, 100, lines, {"max_lines": 800})
+        assert not any(i.rule_id == "TCOST001" for i in result.issues)
+
+    def test_custom_max_lines_still_fires(self):
+        lines = [f"line {i}" for i in range(900)]
+        content = "\n".join(lines)
+        _check_size(result := ScanResult(file="test.md"),
+                     content, 100, lines, {"max_lines": 800})
+        assert any(i.rule_id == "TCOST001" for i in result.issues)
+
+    def test_default_thresholds_unchanged(self):
+        lines = [f"line {i}" for i in range(50)]
+        content = "\n".join(lines)
+        _check_size(result := ScanResult(file="test.md"),
+                     content, 6000, lines)
+        assert any(i.rule_id == "TCOST002" for i in result.issues)
+
+    def test_toml_thresholds_loaded(self, tmp_path):
+        toml = tmp_path / "pyproject.toml"
+        toml.write_text(
+            '[tool.skill-lint]\n'
+            'thresholds = {max_tokens = 8000}\n'
+        )
+        config = _load_config(tmp_path)
+        assert config.get("thresholds", {}).get("max_tokens") == 8000
+
+    def test_invalid_threshold_uses_default(self):
+        lines = [f"line {i}" for i in range(50)]
+        content = "\n".join(lines)
+        _check_size(result := ScanResult(file="test.md"),
+                     content, 6000, lines, {"max_tokens": "abc"})
+        assert any(i.rule_id == "TCOST002" for i in result.issues)
