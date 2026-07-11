@@ -144,3 +144,67 @@ def test_scan_gemini_md(tmp_path):
     result = runner.invoke(main, [str(tmp_path)])
     assert result.exit_code == 0
     assert "GEMINI.md" in result.output
+
+
+def test_rule_show_valid():
+    runner = CliRunner()
+    result = runner.invoke(main, ["rule", "TCOST001"])
+    assert result.exit_code == 0
+    assert "TCOST001" in result.output
+    assert "token-cost" in result.output
+    assert "warning" in result.output
+    assert "Fix:" in result.output
+
+
+def test_rule_show_invalid():
+    runner = CliRunner()
+    result = runner.invoke(main, ["rule", "FAKE999"])
+    assert result.exit_code != 0
+    assert "Unknown rule" in result.output
+
+
+def test_rule_list_all():
+    runner = CliRunner()
+    result = runner.invoke(main, ["rule"])
+    assert result.exit_code == 0
+    assert "token-cost" in result.output
+    assert "TCOST001" in result.output
+    assert "CROSS001" in result.output
+
+
+def test_rule_case_insensitive():
+    runner = CliRunner()
+    result = runner.invoke(main, ["rule", "tcost001"])
+    assert result.exit_code == 0
+    assert "TCOST001" in result.output
+
+
+def test_explicit_scan_subcommand(tmp_path):
+    skill = tmp_path / "CLAUDE.md"
+    skill.write_text("# Project\nSimple.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, ["scan", str(tmp_path)])
+    assert result.exit_code == 0
+
+
+def test_bare_command_defaults_scan(tmp_path):
+    runner = CliRunner()
+    result = runner.invoke(main, [])
+    assert result.exit_code == 0
+
+
+def test_rules_dict_sync():
+    import re
+    from pathlib import Path
+
+    from skill_lint.rules import RULES
+
+    scanner_path = Path(__file__).parent.parent / "src" / "skill_lint" / "scanner.py"
+    source = scanner_path.read_text()
+    found_ids = set(re.findall(r'rule_id="([A-Z]+\d+)"', source))
+    found_ids.discard("RULE_ERR")
+    rules_ids = set(RULES.keys())
+    assert rules_ids == found_ids, (
+        f"RULES dict out of sync. Missing from RULES: {found_ids - rules_ids}. "
+        f"Extra in RULES: {rules_ids - found_ids}"
+    )

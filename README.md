@@ -14,6 +14,8 @@ skill-lint /path/to/project                     # Scan a local directory
 skill-lint https://github.com/org/repo          # Scan a GitHub repo
 skill-lint . --format sarif --fail-on warning   # CI gate
 skill-lint . -v                                 # Verbose
+skill-lint rule TCOST001                        # Explain a rule
+skill-lint rule                                 # List all 40 rules
 ```
 
 ## What It Checks

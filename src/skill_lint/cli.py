@@ -9,6 +9,7 @@ import click
 from skill_lint import __version__
 
 _VALID_SEVERITIES = {"warning", "suggestion", "info"}
+_GROUP_FLAGS = {"--version", "--help", "-h"}
 
 
 def _validate_severity(ctx, param, value):
@@ -24,8 +25,23 @@ def _validate_severity(ctx, param, value):
     return ",".join(parts)
 
 
-@click.command()
+class DefaultGroup(click.Group):
+    def parse_args(self, ctx, args):
+        if not args or (args[0] not in self.commands and args[0] not in _GROUP_FLAGS):
+            args = ["scan"] + args
+        return super().parse_args(ctx, args)
+
+
+@click.group(cls=DefaultGroup)
 @click.version_option(version=__version__)
+def main():
+    """skill-lint: Linter for AI instruction files.
+
+    Runs scan by default if no subcommand is given.
+    """
+
+
+@main.command()
 @click.argument("path", default=".")
 @click.option(
     "--format", "fmt",
@@ -66,9 +82,9 @@ def _validate_severity(ctx, param, value):
     "--report", is_flag=True, default=False,
     help="Show aggregate summary instead of per-file details",
 )
-def main(path, fmt, severity, verbose, disable, fail_on,
+def scan(path, fmt, severity, verbose, disable, fail_on,
          save_baseline, diff_baseline, baseline_path, report):
-    """skill-lint: Linter for AI skill files."""
+    """Scan AI instruction files for quality issues."""
     from skill_lint.scanner import SEVERITY_ORDER, run_scan
 
     if save_baseline and diff_baseline:
@@ -94,7 +110,6 @@ def main(path, fmt, severity, verbose, disable, fail_on,
         report=report,
     )
 
-    # Exit 2 on operational errors (path not found, clone failed, etc.)
     if counts is None:
         sys.exit(2)
 
@@ -107,3 +122,45 @@ def main(path, fmt, severity, verbose, disable, fail_on,
         )
         if has_failing:
             sys.exit(1)
+
+
+@main.command()
+@click.argument("rule_id", required=False)
+def rule(rule_id):
+    """Show documentation for a rule, or list all rules."""
+    from skill_lint.rules import RULES
+
+    if rule_id is None:
+        _list_all_rules(RULES)
+        return
+
+    rule_id = rule_id.upper()
+    if rule_id not in RULES:
+        click.echo(f"Unknown rule: {rule_id}")
+        click.echo(f"Run 'skill-lint rule' to see all {len(RULES)} rules.")
+        sys.exit(1)
+
+    r = RULES[rule_id]
+    click.echo(f"{rule_id}: {r['name']}")
+    click.echo(f"Category: {r['category']}")
+    click.echo(f"Severity: {r['severity']}")
+    click.echo()
+    click.echo(r["description"])
+    click.echo()
+    click.echo(f"Fix: {r['fix']}")
+    if "threshold" in r:
+        click.echo(f"Threshold: {r['threshold']}")
+
+
+def _list_all_rules(rules):
+    categories = {}
+    for rid, r in rules.items():
+        cat = r["category"]
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append((rid, r))
+
+    for cat, items in categories.items():
+        click.echo(f"\n{cat} ({len(items)} rules)")
+        for rid, r in items:
+            click.echo(f"  {rid:10s}  {r['severity']:10s}  {r['name']}")
