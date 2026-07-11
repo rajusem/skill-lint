@@ -7,7 +7,7 @@ skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md
 ## Quick Start
 
 ```bash
-pip install skill-lint   # or: pipx install skill-lint
+pip install ai-skill-lint   # or: pipx install ai-skill-lint
 
 skill-lint .                                    # Scan current project
 skill-lint /path/to/project                     # Scan a local directory
@@ -35,7 +35,7 @@ Each file scored 0-100 with actionable fix suggestions.
 
 ```yaml
 # GitHub Actions
-- run: pip install skill-lint
+- run: pip install ai-skill-lint
 - run: skill-lint . --format sarif --fail-on warning > results.sarif
 - uses: github/codeql-action/upload-sarif@v3
   with:
