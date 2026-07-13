@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/rajusem/skill-lint/main/skill-lint-schema.json",
+  "title": "skill-lint configuration",
+  "description": "Configuration for ai-skill-lint (.skill-lint.yaml)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "disable": {
+      "type": "array",
+      "description": "Rule IDs to suppress (e.g., HRISK002, OQUAL001)",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]+[0-9]+$"
+      },
+      "examples": [["HRISK002", "OQUAL001"]]
+    },
+    "fail_on": {
+      "type": "string",
+      "description": "Exit 1 if issues at this severity or above",
+      "enum": ["warning", "suggestion", "info"]
+    },
+    "fail_under": {
+      "type": "integer",
+      "description": "Exit 1 if average score is below this threshold",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "thresholds": {
+      "type": "object",
+      "description": "Override default rule thresholds",
+      "additionalProperties": false,
+      "properties": {
+        "max_tokens": {
+          "type": "integer",
+          "description": "TCOST002 warning threshold (default: 5000)",
+          "minimum": 1,
+          "default": 5000
+        },
+        "max_lines": {
+          "type": "integer",
+          "description": "TCOST001 warning threshold (default: 500)",
+          "minimum": 1,
+          "default": 500
+        }
+      }
+    },
+    "include": {
+      "type": "array",
+      "description": "Additional file patterns to scan (glob syntax)",
+      "items": {
+        "type": "string"
+      },
+      "examples": [["prompts/*.md", "docs/agents/**/*.md"]]
+    },
+    "exclude": {
+      "type": "array",
+      "description": "File patterns to exclude from scanning (glob syntax)",
+      "items": {
+        "type": "string"
+      },
+      "examples": [["vendor/*.md", "generated/**/*.md"]]
+    }
+  }
+}

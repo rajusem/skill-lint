@@ -102,6 +102,11 @@ skill-lint . --diff            # Show only NEW issues
 
 ## Configuration
 
+For VS Code/Cursor autocomplete, add to the top of your `.skill-lint.yaml`:
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rajusem/skill-lint/main/skill-lint-schema.json
+```
+
 ### Option 1: `.skill-lint.yaml`
 
 ```yaml
