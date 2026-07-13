@@ -295,3 +295,15 @@ def test_fix_message_shows_rule_link(tmp_path):
     runner = CliRunner()
     result = runner.invoke(main, [str(tmp_path), "-v"])
     assert "Run: skill-lint rule" in result.output
+
+
+def test_exclude_from_config(tmp_path):
+    (tmp_path / "CLAUDE.md").write_text("# Project\nInstructions.\n")
+    (tmp_path / "AGENTS.md").write_text("# Agents\nAgent rules.\n")
+    cfg = tmp_path / ".skill-lint.yaml"
+    cfg.write_text('exclude:\n  - "CLAUDE.md"\n')
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path)])
+    assert result.exit_code == 0
+    assert "AGENTS.md" in result.output
+    assert "CLAUDE.md" not in result.output or "No skill" in result.output

@@ -552,6 +552,7 @@ def run_scan(
     baseline_path: str | None = None,
     report: bool = False,
     include_patterns: list[str] | None = None,
+    exclude_patterns: list[str] | None = None,
 ) -> dict[str, int] | None:
     """Scan skill and agent files for issues.
 
@@ -592,7 +593,8 @@ def run_scan(
         return _run_scan_on_dir(
             target, display_path, fmt, severity_filter, verbose,
             disabled_rules, fail_on, save_baseline,
-            diff_baseline, baseline_path, report, include_patterns,
+            diff_baseline, baseline_path, report,
+            include_patterns, exclude_patterns,
         )
     finally:
         if clone_dir and clone_dir.exists():
@@ -612,6 +614,7 @@ def _run_scan_on_dir(
     baseline_path: str | None,
     report: bool,
     include_patterns: list[str] | None = None,
+    exclude_patterns: list[str] | None = None,
 ) -> dict[str, int]:
     empty_counts: dict[str, int] = {
         "warning": 0, "suggestion": 0, "info": 0,
@@ -640,9 +643,13 @@ def _run_scan_on_dir(
         cfg_include = config.get("include", [])
         if cfg_include:
             include_patterns = cfg_include if isinstance(cfg_include, list) else [cfg_include]
+    if not exclude_patterns:
+        cfg_exclude = config.get("exclude", [])
+        if cfg_exclude:
+            exclude_patterns = cfg_exclude if isinstance(cfg_exclude, list) else [cfg_exclude]
 
     if not target.is_file():
-        files = _discover_files(target, include_patterns)
+        files = _discover_files(target, include_patterns, exclude_patterns)
         if not files:
             console.print("[yellow]No skill or agent files found.[/yellow]")
             console.print(
@@ -781,7 +788,9 @@ def _run_scan_on_dir(
 
 
 def _discover_files(
-    root: Path, include_patterns: list[str] | None = None,
+    root: Path,
+    include_patterns: list[str] | None = None,
+    exclude_patterns: list[str] | None = None,
 ) -> list[Path]:
     files = []
 
@@ -811,7 +820,15 @@ def _discover_files(
     for pattern in (include_patterns or []):
         files.extend(sorted(root.glob(pattern)))
 
-    return list(dict.fromkeys(files))
+    result = list(dict.fromkeys(files))
+
+    if exclude_patterns:
+        excluded = set()
+        for pattern in exclude_patterns:
+            excluded.update(root.glob(pattern))
+        result = [f for f in result if f not in excluded]
+
+    return result
 
 
 def _estimate_tokens(text: str) -> int:

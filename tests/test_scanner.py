@@ -2924,3 +2924,37 @@ class TestHRISK006DestructiveOps:
             result, text, text.splitlines(), content_text=ct,
         )
         assert not any(i.rule_id == "HRISK006" for i in result.issues)
+
+
+# ── --exclude flag ─────────────────────────────────────────────────
+
+
+class TestExcludePatterns:
+    def test_exclude_removes_files(self, tmp_path):
+        (tmp_path / "CLAUDE.md").write_text("# Project")
+        found = _discover_files(tmp_path, exclude_patterns=["CLAUDE.md"])
+        assert not any(f.name == "CLAUDE.md" for f in found)
+
+    def test_exclude_glob_pattern(self, tmp_path):
+        d = tmp_path / "agents"
+        d.mkdir()
+        (d / "fix.md").write_text("# Fix agent")
+        (tmp_path / "CLAUDE.md").write_text("# Project")
+        found = _discover_files(
+            tmp_path, exclude_patterns=["agents/*.md"],
+        )
+        assert any(f.name == "CLAUDE.md" for f in found)
+        assert not any(f.name == "fix.md" for f in found)
+
+    def test_exclude_with_include(self, tmp_path):
+        d = tmp_path / "prompts"
+        d.mkdir()
+        (d / "system.md").write_text("# System")
+        (d / "draft.md").write_text("# Draft")
+        found = _discover_files(
+            tmp_path,
+            include_patterns=["prompts/*.md"],
+            exclude_patterns=["prompts/draft.md"],
+        )
+        assert any(f.name == "system.md" for f in found)
+        assert not any(f.name == "draft.md" for f in found)

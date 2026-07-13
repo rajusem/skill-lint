@@ -87,13 +87,17 @@ def main():
     help="Additional file patterns to scan (e.g. 'prompts/*.md')",
 )
 @click.option(
+    "--exclude", "exclude_patterns", multiple=True,
+    help="File patterns to exclude from scanning (e.g. 'vendor/*.md')",
+)
+@click.option(
     "--fail-under", "fail_under", type=click.IntRange(0, 100),
     default=None,
     help="Exit 1 if average score is below this threshold (0-100)",
 )
 def scan(path, fmt, severity, verbose, disable, fail_on,
          save_baseline, diff_baseline, baseline_path, report,
-         include_patterns, fail_under):
+         include_patterns, exclude_patterns, fail_under):
     """Scan AI instruction files for quality issues."""
     from skill_lint.scanner import SEVERITY_ORDER, run_scan
 
@@ -119,6 +123,7 @@ def scan(path, fmt, severity, verbose, disable, fail_on,
         baseline_path=baseline_path,
         report=report,
         include_patterns=list(include_patterns) if include_patterns else None,
+        exclude_patterns=list(exclude_patterns) if exclude_patterns else None,
     )
 
     if counts is None:
