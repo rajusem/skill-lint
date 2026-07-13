@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-skill-lint"
-version = "0.2.0"
+version = "0.2.1"
 description = "Linter for AI instruction files — skills, prompts, and agent specs"
 readme = "README.md"
 license = "Apache-2.0"
