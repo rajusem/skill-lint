@@ -168,6 +168,16 @@ Custom rule IDs must use the `CUSTOM_` prefix. The `ctx` object provides: `conte
 2. **Show, don't enforce** — display impact, let users decide
 3. **Honest numbers** — no inflated claims; validated across 88+ repos
 
+## Agent Integration
+
+Want Claude to fix your instruction files automatically? Copy our official skill:
+
+```bash
+cp -r examples/fix-instruction-files/ .claude/skills/fix-instruction-files/
+```
+
+The skill runs `skill-lint`, interprets findings, and proposes fixes with before/after diffs. See [examples/fix-instruction-files/SKILL.md](examples/fix-instruction-files/SKILL.md).
+
 ## Rule Reference
 
 See [docs/rules.md](docs/rules.md) for detailed documentation on all 44 rules.
