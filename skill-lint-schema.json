@@ -2,64 +2,59 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/rajusem/skill-lint/main/skill-lint-schema.json",
   "title": "skill-lint configuration",
-  "description": "Configuration for ai-skill-lint (.skill-lint.yaml)",
+  "description": "Configuration file for ai-skill-lint (.skill-lint.yaml)",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "disable": {
       "type": "array",
-      "description": "Rule IDs to suppress (e.g., HRISK002, OQUAL001)",
+      "description": "List of rule IDs to disable (e.g., ['HRISK002', 'TCOST001'])",
       "items": {
         "type": "string",
-        "pattern": "^[A-Z]+[0-9]+$"
-      },
-      "examples": [["HRISK002", "OQUAL001"]]
+        "pattern": "^[A-Z]+[0-9]{3}$"
+      }
     },
     "fail_on": {
       "type": "string",
-      "description": "Exit 1 if issues at this severity or above",
+      "description": "Exit with code 1 if issues at this severity or above are found",
       "enum": ["warning", "suggestion", "info"]
     },
     "fail_under": {
       "type": "integer",
-      "description": "Exit 1 if average score is below this threshold",
+      "description": "Exit with code 1 if the average score across all files is below this threshold (0-100)",
       "minimum": 0,
       "maximum": 100
     },
     "thresholds": {
       "type": "object",
-      "description": "Override default rule thresholds",
+      "description": "Override default thresholds for rules",
       "additionalProperties": false,
       "properties": {
         "max_tokens": {
           "type": "integer",
-          "description": "TCOST002 warning threshold (default: 5000)",
-          "minimum": 1,
-          "default": 5000
+          "description": "Maximum allowed tokens per file (default: 5000)",
+          "minimum": 100
         },
         "max_lines": {
           "type": "integer",
-          "description": "TCOST001 warning threshold (default: 500)",
-          "minimum": 1,
-          "default": 500
+          "description": "Maximum allowed lines per file (default: 500)",
+          "minimum": 10
         }
       }
     },
     "include": {
-      "type": "array",
-      "description": "Additional file patterns to scan (glob syntax)",
+      "type": ["array", "string"],
+      "description": "Additional file patterns to scan (e.g., 'prompts/*.md')",
       "items": {
         "type": "string"
-      },
-      "examples": [["prompts/*.md", "docs/agents/**/*.md"]]
+      }
     },
     "exclude": {
-      "type": "array",
-      "description": "File patterns to exclude from scanning (glob syntax)",
+      "type": ["array", "string"],
+      "description": "File patterns to exclude from scanning (e.g., 'tests/fixtures/*.md')",
       "items": {
         "type": "string"
-      },
-      "examples": [["vendor/*.md", "generated/**/*.md"]]
+      }
     }
   }
 }
