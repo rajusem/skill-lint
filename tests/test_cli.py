@@ -208,3 +208,30 @@ def test_rules_dict_sync():
         f"RULES dict out of sync. Missing from RULES: {found_ids - rules_ids}. "
         f"Extra in RULES: {rules_ids - found_ids}"
     )
+
+
+def test_include_from_yaml_config(tmp_path):
+    d = tmp_path / "prompts"
+    d.mkdir()
+    (d / "system.md").write_text("# System\nSystem prompt instructions.\n")
+    cfg = tmp_path / ".skill-lint.yaml"
+    cfg.write_text("include:\n  - 'prompts/*.md'\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path)])
+    assert result.exit_code == 0
+    assert "system.md" in result.output
+
+
+def test_include_cli_overrides_config(tmp_path):
+    cfg_dir = tmp_path / "config_dir"
+    cfg_dir.mkdir()
+    (cfg_dir / "config.md").write_text("# Config\nFrom config.\n")
+    cli_dir = tmp_path / "cli_dir"
+    cli_dir.mkdir()
+    (cli_dir / "cli.md").write_text("# CLI\nFrom CLI.\n")
+    cfg = tmp_path / ".skill-lint.yaml"
+    cfg.write_text("include:\n  - 'config_dir/*.md'\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path), "--include", "cli_dir/*.md"])
+    assert result.exit_code == 0
+    assert "cli.md" in result.output

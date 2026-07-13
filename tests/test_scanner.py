@@ -2688,3 +2688,32 @@ class TestConfigurableThresholds:
         _check_size(result := ScanResult(file="test.md"),
                      content, 6000, lines, {"max_tokens": "abc"})
         assert any(i.rule_id == "TCOST002" for i in result.issues)
+
+
+# ── --include flag ─────────────────────────────────────────────────
+
+
+class TestIncludePatterns:
+    def test_include_glob_finds_files(self, tmp_path):
+        d = tmp_path / "prompts"
+        d.mkdir()
+        (d / "system.md").write_text("# System prompt")
+        found = _discover_files(tmp_path, include_patterns=["prompts/*.md"])
+        assert any(f.name == "system.md" for f in found)
+
+    def test_include_recursive_glob(self, tmp_path):
+        d = tmp_path / "docs" / "agents" / "sub"
+        d.mkdir(parents=True)
+        (d / "helper.md").write_text("# Helper agent")
+        found = _discover_files(tmp_path, include_patterns=["docs/**/*.md"])
+        assert any(f.name == "helper.md" for f in found)
+
+    def test_include_no_match_no_error(self, tmp_path):
+        found = _discover_files(tmp_path, include_patterns=["nonexistent/*.md"])
+        assert isinstance(found, list)
+
+    def test_include_dedup_with_defaults(self, tmp_path):
+        (tmp_path / "CLAUDE.md").write_text("# Project")
+        found = _discover_files(tmp_path, include_patterns=["CLAUDE.md"])
+        claude_files = [f for f in found if f.name == "CLAUDE.md"]
+        assert len(claude_files) == 1

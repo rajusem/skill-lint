@@ -82,8 +82,13 @@ def main():
     "--report", is_flag=True, default=False,
     help="Show aggregate summary instead of per-file details",
 )
+@click.option(
+    "--include", "include_patterns", multiple=True,
+    help="Additional file patterns to scan (e.g. 'prompts/*.md')",
+)
 def scan(path, fmt, severity, verbose, disable, fail_on,
-         save_baseline, diff_baseline, baseline_path, report):
+         save_baseline, diff_baseline, baseline_path, report,
+         include_patterns):
     """Scan AI instruction files for quality issues."""
     from skill_lint.scanner import SEVERITY_ORDER, run_scan
 
@@ -108,6 +113,7 @@ def scan(path, fmt, severity, verbose, disable, fail_on,
         diff_baseline=diff_baseline,
         baseline_path=baseline_path,
         report=report,
+        include_patterns=list(include_patterns) if include_patterns else None,
     )
 
     if counts is None:

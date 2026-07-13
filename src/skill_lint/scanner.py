@@ -479,6 +479,7 @@ def run_scan(
     diff_baseline: bool = False,
     baseline_path: str | None = None,
     report: bool = False,
+    include_patterns: list[str] | None = None,
 ) -> dict[str, int] | None:
     """Scan skill and agent files for issues.
 
@@ -519,7 +520,7 @@ def run_scan(
         return _run_scan_on_dir(
             target, display_path, fmt, severity_filter, verbose,
             disabled_rules, fail_on, save_baseline,
-            diff_baseline, baseline_path, report,
+            diff_baseline, baseline_path, report, include_patterns,
         )
     finally:
         if clone_dir and clone_dir.exists():
@@ -538,6 +539,7 @@ def _run_scan_on_dir(
     diff_baseline: bool,
     baseline_path: str | None,
     report: bool,
+    include_patterns: list[str] | None = None,
 ) -> dict[str, int]:
     empty_counts: dict[str, int] = {
         "warning": 0, "suggestion": 0, "info": 0,
@@ -549,15 +551,6 @@ def _run_scan_on_dir(
         files = [target]
     else:
         root = target
-        files = _discover_files(target)
-        if not files:
-            console.print("[yellow]No skill or agent files found.[/yellow]")
-            console.print(
-                "Looked for: SKILL.md, CLAUDE.md, AGENTS.md, GEMINI.md,"
-                " .cursorrules, .github/copilot-instructions.md,"
-                " .agents/*.md, agents/*.md, skills/*/SKILL.md"
-            )
-            return empty_counts
 
     # Load project config and merge with CLI args (CLI wins)
     config = _load_config(root)
@@ -570,6 +563,21 @@ def _run_scan_on_dir(
     if fail_on is None:
         fail_on = config.get("fail_on")
     thresholds = config.get("thresholds", {})
+    if not include_patterns:
+        cfg_include = config.get("include", [])
+        if cfg_include:
+            include_patterns = cfg_include if isinstance(cfg_include, list) else [cfg_include]
+
+    if not target.is_file():
+        files = _discover_files(target, include_patterns)
+        if not files:
+            console.print("[yellow]No skill or agent files found.[/yellow]")
+            console.print(
+                "Looked for: SKILL.md, CLAUDE.md, AGENTS.md, GEMINI.md,"
+                " .cursorrules, .github/copilot-instructions.md,"
+                " .agents/*.md, agents/*.md, skills/*/SKILL.md"
+            )
+            return empty_counts
 
     if fmt == "table":
         console.print()
@@ -693,7 +701,9 @@ def _run_scan_on_dir(
     return counts
 
 
-def _discover_files(root: Path) -> list[Path]:
+def _discover_files(
+    root: Path, include_patterns: list[str] | None = None,
+) -> list[Path]:
     files = []
 
     for pattern in SKILL_PATTERNS:
@@ -718,6 +728,9 @@ def _discover_files(root: Path) -> list[Path]:
     for f in sorted(root.rglob("SKILL.md")):
         if not _SKIP_DIRS.intersection(f.parts):
             files.append(f)
+
+    for pattern in (include_patterns or []):
+        files.extend(sorted(root.glob(pattern)))
 
     return list(dict.fromkeys(files))
 

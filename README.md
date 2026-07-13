@@ -80,6 +80,9 @@ fail_on: warning
 thresholds:
   max_tokens: 8000   # default: 5000
   max_lines: 800     # default: 500
+include:
+  - "prompts/*.md"
+  - "docs/agents/**/*.md"
 ```
 
 ### Option 2: `pyproject.toml`
@@ -89,6 +92,7 @@ thresholds:
 disable = ["HRISK002", "OQUAL001"]
 fail_on = "warning"
 thresholds = {max_tokens = 8000, max_lines = 800}
+include = ["prompts/*.md", "docs/agents/**/*.md"]
 ```
 
 Precedence: CLI flags > `.skill-lint.yaml` > `pyproject.toml`
