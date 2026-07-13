@@ -37,13 +37,33 @@ Each file scored 0-100 with actionable fix suggestions.
 
 ## CI Integration
 
+### GitHub Actions (recommended)
+
 ```yaml
-# GitHub Actions
-- run: pip install ai-skill-lint
-- run: skill-lint . --format sarif --fail-on warning > results.sarif
+# Basic — one line
+- uses: rajusem/skill-lint@v0
+
+# With SARIF upload to GitHub Code Scanning
+- uses: rajusem/skill-lint@v0
+  with:
+    format: sarif
+    fail-on: warning
 - uses: github/codeql-action/upload-sarif@v3
+  if: always()
   with:
     sarif_file: results.sarif
+
+# Score gate — fail if average score below 80
+- uses: rajusem/skill-lint@v0
+  with:
+    fail-under: '80'
+```
+
+### Manual (any CI)
+
+```bash
+pip install ai-skill-lint
+skill-lint . --fail-on warning
 ```
 
 ### pre-commit
@@ -62,6 +82,16 @@ repos:
 skill-lint . --save-baseline   # Save current findings
 skill-lint . --diff            # Show only NEW issues
 ```
+
+### Common include/exclude patterns
+
+| Layout | Pattern |
+|--------|---------|
+| Prompt directory | `--include "prompts/*.md"` |
+| Nested agent docs | `--include "docs/agents/**/*.md"` |
+| Custom instruction dir | `--include "instructions/**/*.md"` |
+| Exclude vendor | `--exclude "vendor/*.md"` |
+| Exclude generated | `--exclude "generated/**/*.md"` |
 
 ## Inline Suppression
 

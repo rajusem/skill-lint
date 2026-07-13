@@ -1,0 +1,42 @@
+name: 'skill-lint'
+description: 'Lint AI instruction files for quality issues'
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to scan'
+    default: '.'
+  format:
+    description: 'Output format (table, json, sarif)'
+    default: 'table'
+  fail-on:
+    description: 'Severity threshold (warning, suggestion, info)'
+    default: ''
+  fail-under:
+    description: 'Minimum score threshold (0-100)'
+    default: ''
+  args:
+    description: 'Additional arguments to pass to skill-lint'
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install ai-skill-lint
+      shell: bash
+      run: pip install ai-skill-lint
+    - name: Run skill-lint
+      shell: bash
+      run: |
+        ARGS="${{ inputs.path }}"
+        [ -n "${{ inputs.format }}" ] && ARGS="$ARGS --format ${{ inputs.format }}"
+        [ -n "${{ inputs.fail-on }}" ] && ARGS="$ARGS --fail-on ${{ inputs.fail-on }}"
+        [ -n "${{ inputs.fail-under }}" ] && ARGS="$ARGS --fail-under ${{ inputs.fail-under }}"
+        [ -n "${{ inputs.args }}" ] && ARGS="$ARGS ${{ inputs.args }}"
+        if [ "${{ inputs.format }}" = "sarif" ]; then
+          skill-lint $ARGS > results.sarif
+        else
+          skill-lint $ARGS
+        fi
