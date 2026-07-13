@@ -2,7 +2,7 @@
 
 Linter for AI instruction files — skills, prompts, and agent specs.
 
-skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md, .cursorrules, .github/copilot-instructions.md, .github/instructions/, and agent/skill directories) for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 42 rules across 8 categories with fix suggestions.
+skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md, .cursorrules, .github/copilot-instructions.md, .github/instructions/, and agent/skill directories) for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 44 rules across 8 categories with fix suggestions.
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ skill-lint . --format sarif --fail-on warning   # CI gate (severity)
 skill-lint . --fail-under 80                    # CI gate (score)
 skill-lint . -v                                 # Verbose
 skill-lint rule TCOST001                        # Explain a rule
-skill-lint rule                                 # List all 42 rules
+skill-lint rule                                 # List all 44 rules
 ```
 
 ## What It Checks
@@ -25,10 +25,10 @@ skill-lint rule                                 # List all 42 rules
 |----------|-------|---------|
 | Token cost | 11 | Oversized files, duplicates, filler phrases, hedging |
 | Description | 7 | Too long, spec limit, overlap detection, missing trigger conditions |
-| Hallucination risk | 4 | Vague instructions, no output format, prompt injection risk |
+| Hallucination risk | 5 | Vague instructions, no output format, prompt injection, destructive ops |
 | Framing | 4 | Prohibition overuse, emphasis overuse, bare directives |
 | Output quality | 3 | No examples, no verification, no role statement |
-| Best practice | 5 | No model, no error handling, model-complexity mismatch |
+| Best practice | 6 | No model, no error handling, model-complexity mismatch, options without default |
 | Structure | 7 | Broken refs, encoding, file too large |
 | Cross-file | 1 | Contradictions between CLAUDE.md and skill files |
 

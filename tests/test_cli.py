@@ -286,3 +286,12 @@ def test_fail_under_from_config(tmp_path):
     runner = CliRunner()
     result = runner.invoke(main, [str(tmp_path)])
     assert result.exit_code == 1
+
+
+def test_fix_message_shows_rule_link(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    content = "\n".join([f"instruction line {i}" for i in range(55)])
+    f.write_text(content)
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path), "-v"])
+    assert "Run: skill-lint rule" in result.output

@@ -2811,3 +2811,116 @@ class TestDESC007Overlap:
         _check_description_overlap(files, results)
         assert any(i.rule_id == "DESC007" for i in results[0].issues)
         assert not any(i.rule_id == "DESC007" for i in results[2].issues)
+
+
+# ── BPRAC006: menu without default ─────────────────────────────────
+
+
+class TestBPRAC006MenuWithoutDefault:
+    def _check(self, text):
+        result = ScanResult(file="test.md")
+        lines = text.splitlines()
+        _check_best_practices(result, text, lines, content_text=text)
+        return result
+
+    def test_menu_without_default_fires(self):
+        text = "# Skill\nYou can use pdfplumber, PyMuPDF, or pdf2image.\n"
+        result = self._check(text)
+        assert any(i.rule_id == "BPRAC006" for i in result.issues)
+
+    def test_menu_with_default_no_fire(self):
+        text = (
+            "# Skill\nYou can use pdfplumber, PyMuPDF, or pdf2image."
+            " pdfplumber is recommended.\n"
+        )
+        result = self._check(text)
+        assert not any(i.rule_id == "BPRAC006" for i in result.issues)
+
+    def test_no_menu_no_fire(self):
+        text = "# Skill\nRun the validation script.\n"
+        result = self._check(text)
+        assert not any(i.rule_id == "BPRAC006" for i in result.issues)
+
+    def test_menu_in_code_fence_skipped(self):
+        text = (
+            "# Skill\n```\nYou can use X, Y, or Z.\n```\n"
+        )
+        regions = _parse_content_regions(text.splitlines())
+        ct_lines = []
+        in_fence = False
+        for line, rgn in zip(text.splitlines(), regions):
+            if rgn == "content":
+                ct_lines.append(line)
+                in_fence = False
+            elif not in_fence:
+                ct_lines.append("")
+                in_fence = True
+        ct = "\n".join(ct_lines)
+        result = ScanResult(file="test.md")
+        _check_best_practices(
+            result, text, text.splitlines(), content_text=ct,
+        )
+        assert not any(i.rule_id == "BPRAC006" for i in result.issues)
+
+
+# ── HRISK006: destructive ops without validation ───────────────────
+
+
+class TestHRISK006DestructiveOps:
+    def _check(self, text, n_lines=50):
+        padded = text + "\n".join(
+            [f"line {i}" for i in range(n_lines)]
+        )
+        result = ScanResult(file="test.md")
+        lines = padded.splitlines()
+        _check_hallucination_risks(
+            result, padded, lines, content_text=padded,
+        )
+        return result
+
+    def test_destructive_without_validation(self):
+        text = "# Skill\nDelete all temp files.\nWipe the cache.\n"
+        result = self._check(text)
+        assert any(i.rule_id == "HRISK006" for i in result.issues)
+
+    def test_destructive_with_validation(self):
+        text = (
+            "# Skill\nDelete all temp files.\nWipe the cache.\n"
+            "Run with --dry-run first.\n"
+        )
+        result = self._check(text)
+        assert not any(i.rule_id == "HRISK006" for i in result.issues)
+
+    def test_no_destructive_no_fire(self):
+        text = "# Skill\nRun the build script.\nCheck output.\n"
+        result = self._check(text)
+        assert not any(i.rule_id == "HRISK006" for i in result.issues)
+
+    def test_short_file_skipped(self):
+        text = "# Skill\nDelete the branch.\nDrop the table.\n"
+        result = ScanResult(file="test.md")
+        lines = text.splitlines()
+        _check_hallucination_risks(
+            result, text, lines, content_text=text,
+        )
+        assert not any(i.rule_id == "HRISK006" for i in result.issues)
+
+    def test_destructive_in_code_fence_skipped(self):
+        text = "# Skill\n```\nrm -rf /tmp\ndrop table\n```\n"
+        text += "\n".join([f"line {i}" for i in range(50)])
+        regions = _parse_content_regions(text.splitlines())
+        ct_lines = []
+        in_fence = False
+        for line, rgn in zip(text.splitlines(), regions):
+            if rgn == "content":
+                ct_lines.append(line)
+                in_fence = False
+            elif not in_fence:
+                ct_lines.append("")
+                in_fence = True
+        ct = "\n".join(ct_lines)
+        result = ScanResult(file="test.md")
+        _check_hallucination_risks(
+            result, text, text.splitlines(), content_text=ct,
+        )
+        assert not any(i.rule_id == "HRISK006" for i in result.issues)

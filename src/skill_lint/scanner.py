@@ -45,6 +45,26 @@ _SUPPRESS_PAT = re.compile(
     r"\s+((?:[A-Z][A-Z0-9_]+)(?:\s*,?\s*[A-Z][A-Z0-9_]+)*)\s*-->",
 )
 
+_MENU_PAT = re.compile(
+    r"\b(?:you can use|options include|choose between|either use)\b"
+    r".{0,80}(?:(?:,\s*\w+){2,}|,\s+or\s+)",
+    re.IGNORECASE,
+)
+_DEFAULT_PAT = re.compile(
+    r"\b(?:recommend(?:ed)?|default|prefer(?:red)?|by default|suggested)\b",
+    re.IGNORECASE,
+)
+_DESTRUCTIVE_PAT = re.compile(
+    r"\b(?:delete|drop|overwrite|destroy|wipe|truncate"
+    r"|rm\s+-rf|force.push)\b",
+    re.IGNORECASE,
+)
+_VALIDATION_PAT = re.compile(
+    r"\b(?:dry.run|--dry-run|validate|verify|confirm"
+    r"|preview|plan|backup)\b",
+    re.IGNORECASE,
+)
+
 SKILL_PATTERNS = [
     "SKILL.md",
     "CLAUDE.md",
@@ -1315,6 +1335,22 @@ def _check_hallucination_risks(
             rule_id="HRISK005",
         ))
 
+    # HRISK006: destructive operations without validation safeguards
+    if len(lines) > 40:
+        d_matches = _DESTRUCTIVE_PAT.findall(ct)
+        if len(set(m.lower() for m in d_matches)) >= 2:
+            if not _VALIDATION_PAT.search(ct):
+                result.issues.append(Issue(
+                    category="hallucination-risk",
+                    severity="suggestion",
+                    message="Destructive operations without"
+                    " validation safeguards",
+                    fix="Add dry-run, validate, or confirm steps"
+                    " before destructive operations."
+                    " Plan-validate-execute prevents data loss",
+                    rule_id="HRISK006",
+                ))
+
 
 def _check_output_quality(
     result: ScanResult, content: str, lines: list[str],
@@ -1722,6 +1758,17 @@ def _check_best_practices(
                 rule_id="BPRAC005",
             ))
 
+    if _MENU_PAT.search(ct_lower) and not _DEFAULT_PAT.search(ct_lower):
+        result.issues.append(Issue(
+            category="best-practice",
+            severity="suggestion",
+            message="Options presented without a recommended default",
+            fix="Pick a default and mention alternatives briefly."
+            " 'Use X. For Y, use Z instead.' is more effective"
+            " than 'You can use X, Y, or Z'",
+            rule_id="BPRAC006",
+        ))
+
 
 def _check_broken_references(
     result: ScanResult, content: str, filepath: Path,
@@ -2056,7 +2103,13 @@ def _print_results(
                 f" [{issue.category}]{rule_tag} {issue.message}"
             )
             if issue.fix:
-                lines.append(f"           [dim]Fix: {issue.fix}[/dim]")
+                fix_line = f"           [dim]Fix: {issue.fix}"
+                if issue.rule_id:
+                    fix_line += (
+                        f" (Run: skill-lint rule {issue.rule_id})"
+                    )
+                fix_line += "[/dim]"
+                lines.append(fix_line)
 
         # Add truncation summary with severity breakdown
         if top_n is not None and len(sorted_issues) > top_n:
