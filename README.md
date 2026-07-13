@@ -2,7 +2,7 @@
 
 Linter for AI instruction files — skills, prompts, and agent specs.
 
-skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md, .cursorrules, .github/copilot-instructions.md, .github/instructions/, and agent/skill directories) for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 40 rules across 8 categories with fix suggestions.
+skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md, .cursorrules, .github/copilot-instructions.md, .github/instructions/, and agent/skill directories) for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 42 rules across 8 categories with fix suggestions.
 
 ## Quick Start
 
@@ -12,10 +12,11 @@ pip install ai-skill-lint   # or: pipx install ai-skill-lint
 skill-lint .                                    # Scan current project
 skill-lint /path/to/project                     # Scan a local directory
 skill-lint https://github.com/org/repo          # Scan a GitHub repo
-skill-lint . --format sarif --fail-on warning   # CI gate
+skill-lint . --format sarif --fail-on warning   # CI gate (severity)
+skill-lint . --fail-under 80                    # CI gate (score)
 skill-lint . -v                                 # Verbose
 skill-lint rule TCOST001                        # Explain a rule
-skill-lint rule                                 # List all 40 rules
+skill-lint rule                                 # List all 42 rules
 ```
 
 ## What It Checks
@@ -23,7 +24,7 @@ skill-lint rule                                 # List all 40 rules
 | Category | Rules | Examples |
 |----------|-------|---------|
 | Token cost | 11 | Oversized files, duplicates, filler phrases, hedging |
-| Description | 5 | Too long, missing trigger conditions |
+| Description | 7 | Too long, spec limit, overlap detection, missing trigger conditions |
 | Hallucination risk | 4 | Vague instructions, no output format, prompt injection risk |
 | Framing | 4 | Prohibition overuse, emphasis overuse, bare directives |
 | Output quality | 3 | No examples, no verification, no role statement |
@@ -77,6 +78,7 @@ disable:
   - HRISK002
   - OQUAL001
 fail_on: warning
+fail_under: 80        # exit 1 if avg score < 80
 thresholds:
   max_tokens: 8000   # default: 5000
   max_lines: 800     # default: 500
@@ -91,6 +93,7 @@ include:
 [tool.skill-lint]
 disable = ["HRISK002", "OQUAL001"]
 fail_on = "warning"
+fail_under = 80
 thresholds = {max_tokens = 8000, max_lines = 800}
 include = ["prompts/*.md", "docs/agents/**/*.md"]
 ```

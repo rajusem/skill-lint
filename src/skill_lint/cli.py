@@ -86,9 +86,14 @@ def main():
     "--include", "include_patterns", multiple=True,
     help="Additional file patterns to scan (e.g. 'prompts/*.md')",
 )
+@click.option(
+    "--fail-under", "fail_under", type=click.IntRange(0, 100),
+    default=None,
+    help="Exit 1 if average score is below this threshold (0-100)",
+)
 def scan(path, fmt, severity, verbose, disable, fail_on,
          save_baseline, diff_baseline, baseline_path, report,
-         include_patterns):
+         include_patterns, fail_under):
     """Scan AI instruction files for quality issues."""
     from skill_lint.scanner import SEVERITY_ORDER, run_scan
 
@@ -127,6 +132,12 @@ def scan(path, fmt, severity, verbose, disable, fail_on,
             if order <= threshold
         )
         if has_failing:
+            sys.exit(1)
+
+    effective_fail_under = fail_under if fail_under is not None else counts.get("cfg_fail_under")
+    if effective_fail_under is not None:
+        avg = counts.get("avg_score", 100)
+        if avg < effective_fail_under:
             sys.exit(1)
 
 

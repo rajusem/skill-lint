@@ -223,6 +223,58 @@ def _check_cross_file_conflicts(
                         break
 
 
+def _check_description_overlap(
+    files: list[Path], results: list[ScanResult],
+) -> None:
+    """DESC007: detect >75% description similarity between skills."""
+    from difflib import SequenceMatcher
+
+    descriptions: list[tuple[int, str]] = []
+    for i, filepath in enumerate(files):
+        try:
+            content = filepath.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if not content.startswith("---"):
+            continue
+        end = content.find("---", 3)
+        if end <= 0:
+            continue
+        desc_match = re.search(
+            r"description:\s*(.+?)(?:\n\w|\n---|\Z)",
+            content[3:end], re.DOTALL,
+        )
+        if desc_match:
+            desc = desc_match.group(1).strip().strip("\"'")
+            if len(desc) > 20:
+                descriptions.append((i, desc))
+
+    seen_pairs: set[tuple[int, int]] = set()
+    for a_idx, (a_result_idx, a_desc) in enumerate(descriptions):
+        for b_idx, (b_result_idx, b_desc) in enumerate(descriptions):
+            if a_idx >= b_idx:
+                continue
+            pair = (a_result_idx, b_result_idx)
+            if pair in seen_pairs:
+                continue
+            ratio = SequenceMatcher(
+                None, a_desc.lower(), b_desc.lower(),
+            ).ratio()
+            if ratio >= 0.75:
+                seen_pairs.add(pair)
+                other_file = str(files[b_result_idx].name)
+                results[a_result_idx].issues.append(Issue(
+                    category="description",
+                    severity="warning",
+                    message=f"Description is {ratio:.0%} similar"
+                    f" to {other_file}",
+                    fix="Differentiate descriptions so agents can"
+                    " distinguish between skills. Similar"
+                    " descriptions cause wrong-skill selection.",
+                    rule_id="DESC007",
+                ))
+
+
 def _is_root_reference_doc(filepath: Path, root: Path) -> bool:
     """True if filepath is a root-level governance doc (not an agent prompt)."""
     if filepath.parent == root and filepath.name.lower() in {
@@ -562,6 +614,7 @@ def _run_scan_on_dir(
             }
     if fail_on is None:
         fail_on = config.get("fail_on")
+    cfg_fail_under = config.get("fail_under")
     thresholds = config.get("thresholds", {})
     if not include_patterns:
         cfg_include = config.get("include", [])
@@ -594,6 +647,7 @@ def _run_scan_on_dir(
 
     # Cross-file conflict detection (before disable/baseline pipeline)
     _check_cross_file_conflicts(files, results, root)
+    _check_description_overlap(files, results)
 
     # Inline suppression (before disable/baseline pipeline)
     inline_suppressed = 0
@@ -688,6 +742,11 @@ def _run_scan_on_dir(
         allowed = {s.strip().lower() for s in severity_filter.split(",")}
         for r in results:
             r.issues = [i for i in r.issues if i.severity in allowed]
+
+    if results:
+        counts["avg_score"] = sum(r.score for r in results) // len(results)
+    if cfg_fail_under is not None:
+        counts["cfg_fail_under"] = int(cfg_fail_under)
 
     if report:
         _print_report(results)
@@ -998,6 +1057,17 @@ def _check_description_quality(result: ScanResult, content: str) -> None:
             fix="Keep description under ~100 chars with trigger"
             " conditions only: 'Use when...' not a workflow summary",
             rule_id="DESC001",
+        ))
+    if len(desc) > 1024:
+        result.issues.append(Issue(
+            category="description",
+            severity="warning",
+            message=f"Description is {len(desc)} chars"
+            " — exceeds 1024-char spec limit",
+            fix="The agentskills.io specification enforces a"
+            " 1024-character hard limit. Shorten to essential"
+            " trigger conditions only.",
+            rule_id="DESC006",
         ))
 
     workflow_signals = [

@@ -236,3 +236,53 @@ def test_include_cli_overrides_config(tmp_path):
     assert result.exit_code == 0
     assert "cli.md" in result.output
     assert "config.md" not in result.output
+
+
+def test_fail_under_passes(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Project\nSimple project.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path), "--fail-under", "50"])
+    assert result.exit_code == 0
+
+
+def test_fail_under_fails(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    content = "---\ndescription: " + "x" * 1200 + "\n---\n"
+    content += "\n".join([f"line {i}" for i in range(100)])
+    f.write_text(content)
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path), "--fail-under", "95"])
+    assert result.exit_code == 1
+
+
+def test_fail_under_at_threshold_passes(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Project\nSimple project.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path), "--fail-under", "99"])
+    assert result.exit_code == 0
+
+
+def test_fail_under_and_fail_on_or(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    content = "---\ndescription: " + "x" * 1200 + "\n---\n"
+    content += "\n".join([f"line {i}" for i in range(100)])
+    f.write_text(content)
+    runner = CliRunner()
+    result = runner.invoke(main, [
+        str(tmp_path), "--fail-on", "warning", "--fail-under", "50",
+    ])
+    assert result.exit_code == 1
+
+
+def test_fail_under_from_config(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    content = "---\ndescription: " + "x" * 1200 + "\n---\n"
+    content += "\n".join([f"line {i}" for i in range(100)])
+    f.write_text(content)
+    cfg = tmp_path / ".skill-lint.yaml"
+    cfg.write_text("fail_under: 95\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path)])
+    assert result.exit_code == 1

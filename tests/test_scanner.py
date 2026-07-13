@@ -17,6 +17,7 @@ from skill_lint.scanner import (
     _check_broken_references,
     _check_compound_instructions,
     _check_cross_file_conflicts,
+    _check_description_overlap,
     _check_description_quality,
     _check_failure_mode_framing,
     _check_hallucination_risks,
@@ -1023,7 +1024,7 @@ class TestBaseline:
 
         # Second scan with diff: known issues suppressed
         counts = run_scan(path=str(tmp_path), diff_baseline=True)
-        total = sum(counts.values())
+        total = sum(counts.get(s, 0) for s in ("warning", "suggestion", "info"))
         assert total == 0
 
     def test_mutual_exclusivity_in_cli(self):
@@ -2717,3 +2718,96 @@ class TestIncludePatterns:
         found = _discover_files(tmp_path, include_patterns=["CLAUDE.md"])
         claude_files = [f for f in found if f.name == "CLAUDE.md"]
         assert len(claude_files) == 1
+
+
+# ── DESC006: 1024-char spec limit ──────────────────────────────────
+
+
+class TestDESC006SpecLimit:
+    def _make_content(self, desc_len):
+        desc = "x" * desc_len
+        return f"---\ndescription: {desc}\n---\n# Skill\nDo things.\n"
+
+    def test_desc_under_1024_no_desc006(self):
+        content = self._make_content(500)
+        result = ScanResult(file="test.md")
+        _check_description_quality(result, content)
+        assert not any(i.rule_id == "DESC006" for i in result.issues)
+
+    def test_desc_exactly_1024_no_fire(self):
+        content = self._make_content(1024)
+        result = ScanResult(file="test.md")
+        _check_description_quality(result, content)
+        assert not any(i.rule_id == "DESC006" for i in result.issues)
+
+    def test_desc_over_1024_fires(self):
+        content = self._make_content(1200)
+        result = ScanResult(file="test.md")
+        _check_description_quality(result, content)
+        assert any(i.rule_id == "DESC006" for i in result.issues)
+
+    def test_desc_over_1024_and_desc001_both(self):
+        content = self._make_content(1200)
+        result = ScanResult(file="test.md")
+        _check_description_quality(result, content)
+        rule_ids = [i.rule_id for i in result.issues]
+        assert "DESC001" in rule_ids
+        assert "DESC006" in rule_ids
+
+
+# ── DESC007: description overlap ───────────────────────────────────
+
+
+class TestDESC007Overlap:
+    def _make_skill(self, tmp_path, name, desc):
+        f = tmp_path / name
+        f.write_text(f"---\ndescription: {desc}\n---\n# Skill\nContent.\n")
+        return f
+
+    def test_overlap_high_fires(self, tmp_path):
+        desc_a = "Use when analyzing CSV data and generating reports"
+        desc_b = "Use when analyzing CSV data and generating charts"
+        f1 = self._make_skill(tmp_path, "a.md", desc_a)
+        f2 = self._make_skill(tmp_path, "b.md", desc_b)
+        files = [f1, f2]
+        results = [ScanResult(file="a.md"), ScanResult(file="b.md")]
+        _check_description_overlap(files, results)
+        assert any(i.rule_id == "DESC007" for i in results[0].issues)
+
+    def test_overlap_low_no_fire(self, tmp_path):
+        desc_a = "Use when deploying to production via SSH"
+        desc_b = "Use when analyzing CSV data and making charts"
+        f1 = self._make_skill(tmp_path, "a.md", desc_a)
+        f2 = self._make_skill(tmp_path, "b.md", desc_b)
+        files = [f1, f2]
+        results = [ScanResult(file="a.md"), ScanResult(file="b.md")]
+        _check_description_overlap(files, results)
+        assert not any(i.rule_id == "DESC007" for i in results[0].issues)
+
+    def test_overlap_short_skipped(self, tmp_path):
+        f1 = self._make_skill(tmp_path, "a.md", "Fix bugs")
+        f2 = self._make_skill(tmp_path, "b.md", "Fix bugs")
+        files = [f1, f2]
+        results = [ScanResult(file="a.md"), ScanResult(file="b.md")]
+        _check_description_overlap(files, results)
+        assert not any(i.rule_id == "DESC007" for i in results[0].issues)
+
+    def test_overlap_single_file_no_crash(self, tmp_path):
+        f1 = self._make_skill(tmp_path, "a.md", "Use when analyzing data files")
+        files = [f1]
+        results = [ScanResult(file="a.md")]
+        _check_description_overlap(files, results)
+        assert not any(i.rule_id == "DESC007" for i in results[0].issues)
+
+    def test_overlap_three_files_one_pair(self, tmp_path):
+        desc_a = "Use when analyzing CSV data and generating reports"
+        desc_b = "Use when analyzing CSV data and generating charts"
+        desc_c = "Use when deploying applications to production"
+        f1 = self._make_skill(tmp_path, "a.md", desc_a)
+        f2 = self._make_skill(tmp_path, "b.md", desc_b)
+        f3 = self._make_skill(tmp_path, "c.md", desc_c)
+        files = [f1, f2, f3]
+        results = [ScanResult(file="a.md"), ScanResult(file="b.md"), ScanResult(file="c.md")]
+        _check_description_overlap(files, results)
+        assert any(i.rule_id == "DESC007" for i in results[0].issues)
+        assert not any(i.rule_id == "DESC007" for i in results[2].issues)

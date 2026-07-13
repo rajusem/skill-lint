@@ -123,6 +123,22 @@ RULES = {
         "description": "Description doesn't state when to use the skill. Agents need trigger conditions to select the right skill.",
         "fix": "Start with 'Use when...' to clarify when this skill should be invoked.",
     },
+    "DESC006": {
+        "name": "Description exceeds spec limit",
+        "category": "description",
+        "severity": "warning",
+        "description": "Description exceeds the 1024-character hard limit from the agentskills.io specification.",
+        "fix": "Shorten to essential trigger conditions only. Move details into the skill body.",
+        "threshold": "1024 characters",
+    },
+    "DESC007": {
+        "name": "Description overlap",
+        "category": "description",
+        "severity": "warning",
+        "description": "Description is >75% similar to another skill's description. Agents may select the wrong skill when descriptions are near-identical. Issue reported on the first file in each overlapping pair.",
+        "fix": "Differentiate descriptions so agents can distinguish between skills.",
+        "threshold": "75% similarity (SequenceMatcher)",
+    },
     "HRISK001": {
         "name": "Vague instruction",
         "category": "hallucination-risk",
