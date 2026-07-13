@@ -49,7 +49,7 @@ Each file scored 0-100 with actionable fix suggestions.
 ```yaml
 repos:
   - repo: https://github.com/rajusem/skill-lint
-    rev: v0.1.0
+    rev: v0.2.0
     hooks:
       - id: skill-lint
 ```
@@ -129,7 +129,7 @@ Custom rule IDs must use the `CUSTOM_` prefix. The `ctx` object provides: `conte
 
 1. **Help, don't restrict** — every finding is a suggestion, not a gate
 2. **Show, don't enforce** — display impact, let users decide
-3. **Honest numbers** — no inflated claims; validated across 15+ repos
+3. **Honest numbers** — no inflated claims; validated across 88+ repos
 
 ## License
 

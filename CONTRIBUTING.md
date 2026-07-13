@@ -31,8 +31,10 @@ make help        # Show all targets
 
 1. Add check logic in the appropriate `_check_*` function in `scanner.py`
 2. Use an existing prefix (TCOST, STRUCT, DESC, HRISK, OQUAL, FRAME, BPRAC, CROSS) or CUSTOM_ for custom rules
-3. Add tests in `tests/test_scanner.py`
-4. Test against real repos to validate for false positives
+3. Add an entry to `src/skill_lint/rules.py` with name, category, severity, description, and fix
+4. Add tests in `tests/test_scanner.py`
+5. Run `test_rules_dict_sync` to verify rules.py stays in sync with scanner.py
+6. Test against real repos to validate for false positives
 
 ## Commits
 

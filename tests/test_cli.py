@@ -9,7 +9,7 @@ def test_version():
     runner = CliRunner()
     result = runner.invoke(main, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert "0.2.0" in result.output
 
 
 def test_help():
@@ -235,3 +235,4 @@ def test_include_cli_overrides_config(tmp_path):
     result = runner.invoke(main, [str(tmp_path), "--include", "cli_dir/*.md"])
     assert result.exit_code == 0
     assert "cli.md" in result.output
+    assert "config.md" not in result.output

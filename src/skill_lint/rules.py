@@ -97,14 +97,14 @@ RULES = {
     "DESC002": {
         "name": "Description is a workflow",
         "category": "description",
-        "severity": "suggestion",
+        "severity": "warning",
         "description": "Description contains workflow/step language. Descriptions should state when to use the skill, not how it works.",
         "fix": "Move workflow details to the body. Description should be a trigger condition.",
     },
     "DESC003": {
         "name": "First/second person in description",
         "category": "description",
-        "severity": "info",
+        "severity": "warning",
         "description": "Description uses 'I', 'you', or 'we'. Descriptions should be objective trigger conditions.",
         "fix": "Rephrase as 'Use when...' instead of 'I will...' or 'You should...'.",
     },
@@ -112,9 +112,9 @@ RULES = {
         "name": "Description too short",
         "category": "description",
         "severity": "info",
-        "description": "Description is very short (under 20 characters). May not give agents enough context to select the skill.",
+        "description": "Description is very short (under 10 characters). May not give agents enough context to select the skill.",
         "fix": "Add trigger conditions: 'Use when [specific scenario]'.",
-        "threshold": "20 characters",
+        "threshold": "10 characters",
     },
     "DESC005": {
         "name": "No trigger condition",
@@ -252,7 +252,7 @@ RULES = {
     "STRUCT002": {
         "name": "Non-UTF-8 encoding",
         "category": "structure",
-        "severity": "info",
+        "severity": "warning",
         "description": "File contains non-UTF-8 characters. May cause issues with some AI tools.",
         "fix": "Convert to UTF-8 encoding.",
     },
