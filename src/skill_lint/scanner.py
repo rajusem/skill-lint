@@ -1576,11 +1576,11 @@ def _extract_model_tier(content: str) -> str | None:
         return "medium" if "-mini" in name else "high"
     if any(k in name for k in ("-mini", "-nano", "haiku", "flash-lite")):
         return "low"
-    if any(k in name for k in ("opus", "pro", "ultra")):
+    if any(k in name for k in ("opus", "fable", "pro", "ultra")):
         return "high"
     if re.search(r"gpt-(?:4o|4\.1|5)(?![\d.])", name):
         return "high"
-    if any(k in name for k in ("sonnet", "fable", "flash", "gpt")):
+    if any(k in name for k in ("sonnet", "flash", "gpt")):
         return "medium"
     return None
 
