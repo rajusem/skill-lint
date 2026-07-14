@@ -11,7 +11,7 @@
       "description": "List of rule IDs to disable (e.g., ['HRISK002', 'TCOST001'])",
       "items": {
         "type": "string",
-        "pattern": "^[A-Z]+[0-9]{3}$"
+        "pattern": "^[A-Z][A-Z0-9_]+$"
       }
     },
     "fail_on": {
