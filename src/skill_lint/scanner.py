@@ -282,7 +282,7 @@ def _check_description_overlap(
             ).ratio()
             if ratio >= 0.75:
                 seen_pairs.add(pair)
-                other_file = str(files[b_result_idx].name)
+                other_file = str(results[b_result_idx].file)
                 results[a_result_idx].issues.append(Issue(
                     category="description",
                     severity="warning",
