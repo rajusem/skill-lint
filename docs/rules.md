@@ -1,6 +1,6 @@
 # Rule Reference
 
-Auto-generated from rules.py. 44 rules across 8 categories.
+Auto-generated from rules.py. 50 rules across 12 categories.
 
 ## token-cost (11 rules)
 
@@ -434,5 +434,67 @@ File exceeds 10 MB. Skipped to prevent excessive memory usage.
 Root governance file (CLAUDE.md, AGENTS.md) contradicts a child skill or agent file.
 
 **Fix**: Align with root governance or add explicit override justification. Contradictions cause unpredictable agent behavior.
+
+---
+
+## content (1 rule)
+
+### CONTENT008: Unclosed code fence
+- **Severity**: warning
+
+Code fence opened but never closed. Content after the opening fence is hidden from analysis and may be ignored by agents.
+
+**Fix**: Add a closing ``` on its own line after the code block.
+
+---
+
+## agent-safety (3 rules)
+
+### TRAP001: Exact math instruction
+- **Severity**: suggestion
+
+Instruction asks the agent to perform precise calculation. LLMs are unreliable at exact math and may hallucinate numbers.
+
+**Fix**: Provide a script or calculator tool. Agents should call tools for math, not compute inline.
+
+---
+
+### TRAP002: Regex generation instruction
+- **Severity**: suggestion
+
+Instruction asks the agent to write a regular expression. LLMs produce unreliable regex that may silently miss edge cases.
+
+**Fix**: Write tests first, then the regex. Or use a well-tested regex library.
+
+---
+
+### TRAP003: Manual structured data editing
+- **Severity**: suggestion
+
+Instruction asks the agent to manually parse or modify structured data (JSON, XML, YAML). LLMs corrupt structured formats when editing inline.
+
+**Fix**: Use jq, yq, or ast-grep instead. Agents should call tools for structured data, not edit inline.
+
+---
+
+## supply-chain (1 rule)
+
+### SUPPLY001: Dangerous hook command
+- **Severity**: error
+
+Hook command contains a download-and-execute chain, obfuscation pattern, or dotfile directory execution. These are supply chain attack vectors.
+
+**Fix**: Avoid curl|sh, eval, base64 decode, and dotfile execution in hooks. Review hook commands for malicious payloads.
+
+---
+
+## security (1 rule)
+
+### SEC001: Hardcoded API key
+- **Severity**: error
+
+Possible API key or credential detected in an instruction file. Hardcoded secrets risk exposure through version control.
+
+**Fix**: Remove hardcoded credentials. Use environment variables or a secrets manager.
 
 ---

@@ -360,4 +360,18 @@ RULES = {
         "description": "Instruction asks the agent to manually parse or modify structured data (JSON, XML, YAML). LLMs corrupt structured formats when editing inline.",
         "fix": "Use jq, yq, or ast-grep instead. Agents should call tools for structured data, not edit inline.",
     },
+    "SUPPLY001": {
+        "name": "Dangerous hook command",
+        "category": "supply-chain",
+        "severity": "error",
+        "description": "Hook command contains a download-and-execute chain, obfuscation pattern, or dotfile directory execution. These are supply chain attack vectors.",
+        "fix": "Avoid curl|sh, eval, base64 decode, and dotfile execution in hooks. Review hook commands for malicious payloads.",
+    },
+    "SEC001": {
+        "name": "Hardcoded API key",
+        "category": "security",
+        "severity": "error",
+        "description": "Possible API key or credential detected in an instruction file. Hardcoded secrets risk exposure through version control.",
+        "fix": "Remove hardcoded credentials. Use environment variables or a secrets manager.",
+    },
 }

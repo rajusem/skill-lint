@@ -706,6 +706,11 @@ def _run_scan_on_dir(
             " suppressed by comments"
         )
 
+    # Supply chain checks on settings/hooks JSON files
+    # (inserted after inline suppression, before disable/baseline pipeline)
+    settings_results = _scan_settings_files(root)
+    results.extend(settings_results)
+
     # Order: disable -> baseline -> count severities -> filter -> score
     if disabled_rules:
         normed = {r.strip().upper() for r in disabled_rules}
@@ -915,6 +920,8 @@ def _analyze_file(
     _check_compound_instructions(result, content, lines, regions)
     _check_content_quality(result, content, lines, regions)
     _check_agent_traps(result, content_text, lines, regions)
+    # SEC001 intentionally scans all lines including code fences — keys appear in examples
+    _check_secrets(result, content, lines)
 
     # Run custom rules from registry
     if RULE_REGISTRY:
@@ -940,6 +947,108 @@ def _analyze_file(
     result.score = _compute_score(result.issues)
 
     return result
+
+
+_SUPPLY_HOOK_PATS = [
+    re.compile(r"curl\s.*\|\s*(sh|bash|zsh)\b", re.I),
+    re.compile(r"wget\s.*\|\s*(sh|bash|zsh)\b", re.I),
+    re.compile(r'eval\s*"\$\(', re.I),
+    re.compile(r"base64\s+(-d|--decode)", re.I),
+    re.compile(r"\.(claude|cursor|vscode|windsurf|opencode)/", re.I),
+]
+
+_API_KEY_PATTERNS = [
+    ("Anthropic", re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}")),
+    ("OpenAI", re.compile(r"sk-proj-[A-Za-z0-9_-]{80,}")),
+    ("GitHub PAT", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
+    ("GitHub fine-grained", re.compile(r"github_pat_[A-Za-z0-9_]{22,}")),
+    ("AWS", re.compile(r"AKIA[0-9A-Z]{16}")),
+    ("GitLab", re.compile(r"glpat-[A-Za-z0-9\-]{20,}")),
+    ("Slack Bot", re.compile(r"xoxb-[0-9]{10,13}-[0-9]{10,13}-[A-Za-z0-9]{24}")),
+    ("HuggingFace", re.compile(r"hf_[A-Za-z0-9]{34,}")),
+    ("Google AI", re.compile(r"AIza[0-9A-Za-z\-_]{35}")),
+    ("Stripe live", re.compile(r"sk_live_[0-9a-zA-Z]{24,}")),
+    ("npm", re.compile(r"npm_[A-Za-z0-9]{36,}")),
+    ("PyPI", re.compile(r"pypi-[A-Za-z0-9_-]{16,}")),
+    ("SendGrid", re.compile(r"SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}")),
+    ("Groq", re.compile(r"gsk_[A-Za-z0-9]{20,}")),
+    ("Replicate", re.compile(r"r8_[A-Za-z0-9]{20,}")),
+    ("xAI", re.compile(r"xai-[A-Za-z0-9_-]{20,}")),
+    ("Private key", re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----")),
+]
+
+_PLACEHOLDER_PAT = re.compile(
+    r"(xxx|your[_-]key|placeholder|example|\.\.\.|\*{3,}|0{8,})", re.I,
+)
+
+
+def _scan_settings_files(root: Path) -> list[ScanResult]:
+    results = []
+    settings_files = [
+        root / ".claude" / "settings.json",
+        root / ".claude" / "settings.local.json",
+    ]
+    for fp in settings_files:
+        if not fp.exists():
+            continue
+        result = ScanResult(file=str(fp.relative_to(root)))
+        try:
+            data = json.loads(fp.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        _check_hooks_dangerous(result, data)
+        raw_content = fp.read_text()
+        _check_secrets(result, raw_content, raw_content.splitlines())
+        if result.issues:
+            results.append(result)
+    return results
+
+
+def _check_hooks_dangerous(result, data):
+    hooks_data = data.get("hooks", {})
+    if not isinstance(hooks_data, dict):
+        return
+    for _event_name, matcher_groups in hooks_data.items():
+        if not isinstance(matcher_groups, list):
+            continue
+        for group in matcher_groups:
+            if not isinstance(group, dict):
+                continue
+            for handler in group.get("hooks", []):
+                if not isinstance(handler, dict):
+                    continue
+                command = handler.get("command", "")
+                if not command:
+                    continue
+                for pat in _SUPPLY_HOOK_PATS:
+                    if pat.search(command):
+                        result.issues.append(Issue(
+                            category="supply-chain", severity="error",
+                            message=f"Dangerous hook command: {command[:80]}",
+                            fix="Avoid curl|sh, eval, base64 decode, and"
+                            " dotfile execution in hooks."
+                            " These are supply chain attack vectors.",
+                            rule_id="SUPPLY001",
+                        ))
+                        break
+
+
+def _check_secrets(result, content, lines):
+    found = False
+    for line in lines:
+        if found:
+            break
+        for provider, pat in _API_KEY_PATTERNS:
+            if pat.search(line) and not _PLACEHOLDER_PAT.search(line):
+                result.issues.append(Issue(
+                    category="security", severity="error",
+                    message=f"Possible {provider} API key or credential detected",
+                    fix="Remove hardcoded credentials."
+                    " Use environment variables or a secrets manager.",
+                    rule_id="SEC001",
+                ))
+                found = True
+                break
 
 
 _TRAP_MATH_PAT = re.compile(
