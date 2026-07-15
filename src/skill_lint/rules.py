@@ -332,4 +332,18 @@ RULES = {
         "description": "Root governance file (CLAUDE.md, AGENTS.md) contradicts a child skill or agent file.",
         "fix": "Align with root governance or add explicit override justification. Contradictions cause unpredictable agent behavior.",
     },
+    "CONTENT008": {
+        "name": "Unclosed code fence",
+        "category": "content",
+        "severity": "warning",
+        "description": "Code fence opened but never closed. Content after the opening fence is hidden from analysis and may be ignored by agents.",
+        "fix": "Add a closing ``` on its own line after the code block.",
+    },
+    "TRAP001": {
+        "name": "Exact math instruction",
+        "category": "agent-safety",
+        "severity": "suggestion",
+        "description": "Instruction asks the agent to perform precise calculation. LLMs are unreliable at exact math and may hallucinate numbers.",
+        "fix": "Provide a script or calculator tool. Agents should call tools for math, not compute inline.",
+    },
 }

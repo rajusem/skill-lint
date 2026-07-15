@@ -13,9 +13,11 @@ from skill_lint.scanner import (
     _analyze_file,
     _baseline_key,
     _build_baseline,
+    _check_agent_traps,
     _check_best_practices,
     _check_broken_references,
     _check_compound_instructions,
+    _check_content_quality,
     _check_cross_file_conflicts,
     _check_description_overlap,
     _check_description_quality,
@@ -2958,3 +2960,87 @@ class TestExcludePatterns:
         )
         assert any(f.name == "system.md" for f in found)
         assert not any(f.name == "draft.md" for f in found)
+
+
+class TestUnclosedCodeFence:
+    def test_unclosed_fence_flagged(self):
+        content = "# Title\n```\nsome code\nmore code"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert any(i.rule_id == "CONTENT008" for i in result.issues)
+
+    def test_balanced_fences_pass(self):
+        content = "# Title\n```\ncode\n```\n"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert not any(i.rule_id == "CONTENT008" for i in result.issues)
+
+    def test_file_ending_with_closed_fence(self):
+        content = "# Title\n```\ncode\n```"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert not any(i.rule_id == "CONTENT008" for i in result.issues)
+
+    def test_multiple_fences_last_unclosed(self):
+        content = "# Title\n```\ncode1\n```\ntext\n```\ncode2"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert any(i.rule_id == "CONTENT008" for i in result.issues)
+
+    def test_tilde_fence_unclosed(self):
+        content = "# Title\n~~~\ncode here"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert any(i.rule_id == "CONTENT008" for i in result.issues)
+
+    def test_single_line_fence_flagged(self):
+        content = "```"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert any(i.rule_id == "CONTENT008" for i in result.issues)
+
+
+class TestAgentTraps:
+    def test_calculate_exact_cost_flagged(self):
+        content = "# Task\ncalculate the exact cost of the migration"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP001" for i in result.issues)
+
+    def test_calculate_exact_savings_flagged(self):
+        content = "# Task\nCalculate exact savings per quarter"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP001" for i in result.issues)
+
+    def test_estimate_cost_not_flagged(self):
+        content = "# Task\nestimate the cost of the migration"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP001" for i in result.issues)
+
+    def test_in_code_fence_not_flagged(self):
+        content = "# Title\n```\ncalculate the exact cost\n```"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP001" for i in result.issues)

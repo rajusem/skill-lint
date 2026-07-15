@@ -913,6 +913,8 @@ def _analyze_file(
     _check_termination_conditions(result, content, lines, regions, filepath, root)
     _check_role_identity(result, content, lines, filepath)
     _check_compound_instructions(result, content, lines, regions)
+    _check_content_quality(result, content, lines, regions)
+    _check_agent_traps(result, content_text, lines, regions)
 
     # Run custom rules from registry
     if RULE_REGISTRY:
@@ -938,6 +940,54 @@ def _analyze_file(
     result.score = _compute_score(result.issues)
 
     return result
+
+
+_TRAP_MATH_PAT = re.compile(
+    r"\b(calculate|compute)\b.{0,20}\b(exact|precise)\b", re.I,
+)
+
+
+def _check_content_quality(result, content, lines, regions):
+    if not regions or not lines or regions[-1] != "codefence":
+        return
+    last_line = lines[-1].strip()
+    if re.match(r"^(`{3,}|~{3,})$", last_line):
+        run_len = 0
+        for r in reversed(regions):
+            if r == "codefence":
+                run_len += 1
+            else:
+                break
+        if run_len > 1:
+            return
+    open_line = None
+    for i in range(len(regions) - 1, -1, -1):
+        if i == 0 or regions[i - 1] != "codefence":
+            open_line = i + 1
+            break
+    result.issues.append(Issue(
+        category="content", severity="warning",
+        message="Code fence opened but never closed"
+        " — content after this line is hidden from analysis",
+        fix="Add a closing ``` on its own line after the code block.",
+        rule_id="CONTENT008", line=open_line,
+    ))
+
+
+def _check_agent_traps(result, content_text, lines, regions):
+    for i, (line, rgn) in enumerate(zip(lines, regions)):
+        if rgn != "content":
+            continue
+        if _TRAP_MATH_PAT.search(line):
+            result.issues.append(Issue(
+                category="agent-safety", severity="suggestion",
+                message="Instruction asks the agent to perform precise"
+                " calculation — LLMs are unreliable at exact math",
+                fix="Provide a script or calculator tool."
+                " Agents should call tools for math, not compute inline.",
+                rule_id="TRAP001", line=i + 1,
+            ))
+            break
 
 
 def _parse_content_regions(lines: list[str]) -> list[str]:
