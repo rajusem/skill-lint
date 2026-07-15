@@ -3044,3 +3044,83 @@ class TestAgentTraps:
         result = ScanResult(file="test.md")
         _check_agent_traps(result, content, lines, regions)
         assert not any(i.rule_id == "TRAP001" for i in result.issues)
+
+    def test_write_regex_flagged(self):
+        content = "# Task\nwrite a regex that matches emails"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP002" for i in result.issues)
+
+    def test_write_me_regex_flagged(self):
+        content = "# Task\nWrite me a regex for email validation"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP002" for i in result.issues)
+
+    def test_use_regex_not_flagged(self):
+        content = "# Task\nuse the existing regex to validate input"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP002" for i in result.issues)
+
+    def test_parse_json_manually_flagged(self):
+        content = "# Task\nparse the JSON manually and extract fields"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_manually_parse_yaml_flagged(self):
+        content = "# Task\nManually parse the YAML config file"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_parse_json_with_jq_not_flagged(self):
+        content = "# Task\nParse the JSON manually with jq"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_modify_yaml_inline_flagged(self):
+        content = "# Task\nmodify this YAML inline to update the version"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_editing_yaml_manually_flagged(self):
+        content = "# Task\nmanually editing the YAML config is required"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_do_not_parse_not_flagged(self):
+        content = "# Rules\nDo not manually parse JSON — use jq instead"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_never_edit_not_flagged(self):
+        content = "# Rules\nNever edit HTML directly"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP003" for i in result.issues)

@@ -346,4 +346,18 @@ RULES = {
         "description": "Instruction asks the agent to perform precise calculation. LLMs are unreliable at exact math and may hallucinate numbers.",
         "fix": "Provide a script or calculator tool. Agents should call tools for math, not compute inline.",
     },
+    "TRAP002": {
+        "name": "Regex generation instruction",
+        "category": "agent-safety",
+        "severity": "suggestion",
+        "description": "Instruction asks the agent to write a regular expression. LLMs produce unreliable regex that may silently miss edge cases.",
+        "fix": "Write tests first, then the regex. Or use a well-tested regex library.",
+    },
+    "TRAP003": {
+        "name": "Manual structured data editing",
+        "category": "agent-safety",
+        "severity": "suggestion",
+        "description": "Instruction asks the agent to manually parse or modify structured data (JSON, XML, YAML). LLMs corrupt structured formats when editing inline.",
+        "fix": "Use jq, yq, or ast-grep instead. Agents should call tools for structured data, not edit inline.",
+    },
 }

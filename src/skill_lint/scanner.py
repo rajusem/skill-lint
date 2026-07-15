@@ -945,6 +945,22 @@ def _analyze_file(
 _TRAP_MATH_PAT = re.compile(
     r"\b(calculate|compute)\b.{0,20}\b(exact|precise)\b", re.I,
 )
+_TRAP_REGEX_PAT = re.compile(
+    r"\b(write|create|build|generate)\b.{0,15}\b(regex|regular expression)\b",
+    re.I,
+)
+_TRAP_PARSE_PAT = re.compile(
+    r"(?=.*\b(pars\w*|edit\w*|modif\w*)\b)"
+    r"(?=.*\b(manually|inline|directly|by hand)\b)"
+    r".*\b(JSON|XML|YAML|AST|HTML)\b",
+    re.I,
+)
+_TRAP_TOOL_PAT = re.compile(
+    r"\b(jq|yq|xmlstarlet|ast-grep|xsltproc|xmllint|shyaml)\b", re.I,
+)
+_TRAP_NEGATION_PAT = re.compile(
+    r"\b(do not|don't|never|avoid|should not|must not|prohibited)\b", re.I,
+)
 
 
 def _check_content_quality(result, content, lines, regions):
@@ -975,10 +991,13 @@ def _check_content_quality(result, content, lines, regions):
 
 
 def _check_agent_traps(result, content_text, lines, regions):
+    found_trap001 = False
+    found_trap002 = False
+    found_trap003 = False
     for i, (line, rgn) in enumerate(zip(lines, regions)):
         if rgn != "content":
             continue
-        if _TRAP_MATH_PAT.search(line):
+        if not found_trap001 and _TRAP_MATH_PAT.search(line):
             result.issues.append(Issue(
                 category="agent-safety", severity="suggestion",
                 message="Instruction asks the agent to perform precise"
@@ -987,7 +1006,29 @@ def _check_agent_traps(result, content_text, lines, regions):
                 " Agents should call tools for math, not compute inline.",
                 rule_id="TRAP001", line=i + 1,
             ))
-            break
+            found_trap001 = True
+        if not found_trap002 and _TRAP_REGEX_PAT.search(line):
+            result.issues.append(Issue(
+                category="agent-safety", severity="suggestion",
+                message="Instruction asks the agent to write a regex"
+                " — LLMs produce unreliable regular expressions",
+                fix="Write tests first, then the regex."
+                " Or use a well-tested regex library.",
+                rule_id="TRAP002", line=i + 1,
+            ))
+            found_trap002 = True
+        if not found_trap003 and _TRAP_PARSE_PAT.search(line):
+            if not _TRAP_TOOL_PAT.search(line) and not _TRAP_NEGATION_PAT.search(line):
+                result.issues.append(Issue(
+                    category="agent-safety", severity="suggestion",
+                    message="Instruction asks the agent to manually"
+                    " parse or modify structured data"
+                    " — LLMs corrupt structured formats",
+                    fix="Use jq, yq, or ast-grep instead."
+                    " Agents should call tools for structured data, not edit inline.",
+                    rule_id="TRAP003", line=i + 1,
+                ))
+                found_trap003 = True
 
 
 def _parse_content_regions(lines: list[str]) -> list[str]:
