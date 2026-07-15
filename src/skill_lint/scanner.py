@@ -954,7 +954,7 @@ _SUPPLY_HOOK_PATS = [
     re.compile(r"wget\s.*\|\s*(sh|bash|zsh)\b", re.I),
     re.compile(r'eval\s*"\$\(', re.I),
     re.compile(r"base64\s+(-d|--decode)", re.I),
-    re.compile(r"\.(claude|cursor|vscode|windsurf|opencode)/", re.I),
+    re.compile(r"\.(cursor|vscode|windsurf|opencode)/", re.I),
 ]
 
 _API_KEY_PATTERNS = [
@@ -1059,16 +1059,17 @@ _TRAP_REGEX_PAT = re.compile(
     re.I,
 )
 _TRAP_PARSE_PAT = re.compile(
-    r"(?=.*\b(pars\w*|edit\w*|modif\w*)\b)"
-    r"(?=.*\b(manually|inline|directly|by hand)\b)"
-    r".*\b(JSON|XML|YAML|AST|HTML)\b",
+    r"(?=.*\b(parse|edit|modify|parsing|editing|modifying)\b)"
+    r"(?=.*\b(manually|by hand)\b)"
+    r".*\b(JSON|XML|YAML)\b",
     re.I,
 )
 _TRAP_TOOL_PAT = re.compile(
     r"\b(jq|yq|xmlstarlet|ast-grep|xsltproc|xmllint|shyaml)\b", re.I,
 )
 _TRAP_NEGATION_PAT = re.compile(
-    r"\b(do not|don't|never|avoid|should not|must not|prohibited)\b", re.I,
+    r"\b(do not|don't|never|avoid|should not|must not|prohibited|warning|risk)",
+    re.I,
 )
 
 

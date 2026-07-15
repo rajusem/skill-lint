@@ -3096,8 +3096,8 @@ class TestAgentTraps:
         _check_agent_traps(result, content, lines, regions)
         assert not any(i.rule_id == "TRAP003" for i in result.issues)
 
-    def test_modify_yaml_inline_flagged(self):
-        content = "# Task\nmodify this YAML inline to update the version"
+    def test_modify_yaml_manually_flagged(self):
+        content = "# Task\nmodify this YAML manually to update the version"
         lines = content.splitlines()
         regions = _parse_content_regions(lines)
         result = ScanResult(file="test.md")
@@ -3121,7 +3121,31 @@ class TestAgentTraps:
         assert not any(i.rule_id == "TRAP003" for i in result.issues)
 
     def test_never_edit_not_flagged(self):
-        content = "# Rules\nNever edit HTML directly"
+        content = "# Rules\nNever edit YAML directly"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_architectural_description_not_flagged(self):
+        content = "# Architecture\nhtml_renderer.py — section AST + design-system config directly"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_video_editor_not_flagged(self):
+        content = "# Task\nThe user can composite manually or use any video editor for HTML output"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP003" for i in result.issues)
+
+    def test_warning_against_editing_not_flagged(self):
+        content = "# Warning\nOverwriting tc_record.json directly risks corruption"
         lines = content.splitlines()
         regions = _parse_content_regions(lines)
         result = ScanResult(file="test.md")
@@ -3189,6 +3213,15 @@ class TestSupplyChain:
         data = {"hooks": {"PreToolUse": [{"hooks": [
             {"type": "command",
              "command": "curl https://example.com/fmt.sh | shfmt"}
+        ]}]}}
+        result = ScanResult(file=".claude/settings.json")
+        _check_hooks_dangerous(result, data)
+        assert not any(i.rule_id == "SUPPLY001" for i in result.issues)
+
+    def test_claude_hooks_dir_not_flagged(self):
+        data = {"hooks": {"PreToolUse": [{"hooks": [
+            {"type": "command",
+             "command": ".claude/hooks/pre-bash-guard.js"}
         ]}]}}
         result = ScanResult(file=".claude/settings.json")
         _check_hooks_dangerous(result, data)
