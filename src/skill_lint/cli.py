@@ -8,7 +8,7 @@ import click
 
 from skill_lint import __version__
 
-_VALID_SEVERITIES = {"warning", "suggestion", "info"}
+_VALID_SEVERITIES = {"error", "warning", "suggestion", "info"}
 _GROUP_FLAGS = {"--version", "--help", "-h"}
 
 
@@ -62,7 +62,7 @@ def main():
 )
 @click.option(
     "--fail-on", "fail_on",
-    type=click.Choice(["warning", "suggestion", "info"]),
+    type=click.Choice(["error", "warning", "suggestion", "info"]),
     default=None,
     help="Exit 1 if issues at this severity or above (for CI)",
 )

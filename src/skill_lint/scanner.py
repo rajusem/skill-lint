@@ -18,10 +18,10 @@ from rich.table import Table
 
 console = Console()
 
-SEVERITY_WEIGHT = {"warning": 15, "suggestion": 5, "info": 1}
+SEVERITY_WEIGHT = {"error": 25, "warning": 15, "suggestion": 5, "info": 1}
 CATEGORY_PENALTY_CAP = 15
 
-SEVERITY_ORDER = {"warning": 0, "suggestion": 1, "info": 2}
+SEVERITY_ORDER = {"error": -1, "warning": 0, "suggestion": 1, "info": 2}
 
 # Ambiguous words (key, main, root, branch) intentionally trade false negatives
 # for zero false positives — a non-safety prohibition misclassified as safety
@@ -562,7 +562,7 @@ def run_scan(
     import shutil
 
     empty_counts: dict[str, int] = {
-        "warning": 0, "suggestion": 0, "info": 0,
+        "error": 0, "warning": 0, "suggestion": 0, "info": 0,
     }
 
     clone_dir: Path | None = None
@@ -617,7 +617,7 @@ def _run_scan_on_dir(
     exclude_patterns: list[str] | None = None,
 ) -> dict[str, int]:
     empty_counts: dict[str, int] = {
-        "warning": 0, "suggestion": 0, "info": 0,
+        "error": 0, "warning": 0, "suggestion": 0, "info": 0,
     }
 
     # Handle single-file scanning
@@ -2044,7 +2044,7 @@ def _print_report(results: list[ScanResult]) -> None:
     summary.add_row("Total tokens", f"~{total_tokens:,}")
     summary.add_row("Total issues", str(total_issues))
     summary.add_row("Avg score", f"{avg_score}/100")
-    for sev in ("warning", "suggestion", "info"):
+    for sev in ("error", "warning", "suggestion", "info"):
         cnt = severity_counts.get(sev, 0)
         if cnt:
             summary.add_row(f"  {sev}", str(cnt))
@@ -2109,6 +2109,7 @@ def _print_results(
         lines = []
         for issue in display_issues:
             sev_style = {
+                "error": "bold red",
                 "warning": "yellow",
                 "suggestion": "cyan",
                 "info": "dim",
@@ -2134,7 +2135,7 @@ def _print_results(
             sev_counts = Counter(i.severity for i in sorted_issues)
             breakdown = ", ".join(
                 f"{sev_counts[s]} {s}"
-                for s in ["warning", "suggestion", "info"]
+                for s in ["error", "warning", "suggestion", "info"]
                 if sev_counts.get(s)
             )
             lines.append(
@@ -2193,6 +2194,7 @@ def _print_sarif(results: list[ScanResult]) -> None:
     from skill_lint import __version__
 
     sarif_level = {
+        "error": "error",
         "warning": "warning",
         "suggestion": "note",
         "info": "note",

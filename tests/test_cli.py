@@ -307,3 +307,17 @@ def test_exclude_from_config(tmp_path):
     assert result.exit_code == 0
     assert "AGENTS.md" in result.output
     assert "CLAUDE.md" not in result.output or "No skill" in result.output
+
+
+def test_fail_on_error_accepted(tmp_path):
+    (tmp_path / "CLAUDE.md").write_text("# Project\nSimple.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path), "--fail-on", "error"])
+    assert result.exit_code == 0
+
+
+def test_severity_error_accepted(tmp_path):
+    (tmp_path / "CLAUDE.md").write_text("# Project\nSimple.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, [str(tmp_path), "--severity", "error"])
+    assert result.exit_code == 0
