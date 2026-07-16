@@ -346,6 +346,21 @@ RULES = {
         "description": "Boilerplate preamble like 'You are a helpful assistant' or 'follow instructions carefully'. The model already does this by default.",
         "fix": "Remove boilerplate. It wastes tokens without changing behavior.",
     },
+    "CONTENT007": {
+        "name": "Placeholder text",
+        "category": "content",
+        "severity": "info",
+        "description": "TODO, FIXME, or bracket placeholders found. May indicate incomplete instructions.",
+        "fix": "Replace placeholder text with actual instructions or remove.",
+    },
+    "CONTENT002": {
+        "name": "Missing summary heading",
+        "category": "content",
+        "severity": "suggestion",
+        "description": "Long file (200+ lines) with 3+ directives (MUST/NEVER/CRITICAL/ALWAYS) but no summary heading in the first 30 lines.",
+        "fix": "Add a '## Key Rules' or '## TL;DR' section near the top for quick orientation.",
+        "threshold": "200+ lines, 3+ directives, no summary heading",
+    },
     "CONTENT008": {
         "name": "Unclosed code fence",
         "category": "content",

@@ -3566,3 +3566,70 @@ class TestCONTENT001Tautological:
         f.write_text("You are a helpful assistant for code review.\n")
         result = _analyze_file(f, tmp_path)
         assert not any(i.rule_id == "CONTENT001" for i in result.issues)
+
+
+# ── CONTENT007: Placeholder text ─────────────────────────────────
+
+
+class TestCONTENT007Placeholder:
+    def test_todo_flagged(self):
+        content = "# Rules\nTODO: add error handling section\n"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert any(i.rule_id == "CONTENT007" for i in result.issues)
+
+    def test_todo_convention_not_flagged(self):
+        content = "# Rules\nTODO(0): fix this later\n"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert not any(i.rule_id == "CONTENT007" for i in result.issues)
+
+    def test_placeholder_in_code_fence_not_flagged(self):
+        content = "# Rules\n```\n[PLACEHOLDER]\n```\n"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert not any(i.rule_id == "CONTENT007" for i in result.issues)
+
+
+# ── CONTENT002: Missing summary heading ──────────────────────────
+
+
+class TestCONTENT002Summary:
+    def test_long_file_no_summary_flagged(self):
+        content = "# Config\n" + "\n".join(
+            [f"MUST do thing {i}" for i in range(4)]
+            + [f"line {i}" for i in range(250)]
+        )
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert any(i.rule_id == "CONTENT002" for i in result.issues)
+
+    def test_long_file_with_summary_not_flagged(self):
+        content = "## Overview\nKey points.\n" + "\n".join(
+            [f"MUST do thing {i}" for i in range(4)]
+            + [f"line {i}" for i in range(250)]
+        )
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert not any(i.rule_id == "CONTENT002" for i in result.issues)
+
+    def test_short_file_not_flagged(self):
+        content = "\n".join(
+            [f"MUST do thing {i}" for i in range(4)]
+            + [f"line {i}" for i in range(50)]
+        )
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert not any(i.rule_id == "CONTENT002" for i in result.issues)

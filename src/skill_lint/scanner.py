@@ -1219,6 +1219,21 @@ _TAUTOLOGICAL_PATS = [
     re.compile(r"\b(follow instructions carefully|follow the instructions)\b", re.I),
 ]
 
+_PLACEHOLDER_TEXT_PATS = [
+    re.compile(r"\bTODO\b(?!\(\d\))"),
+    re.compile(r"\bFIXME\b"),
+    re.compile(r"\[PLACEHOLDER\]|\[INSERT\s+\w+\]|\[YOUR\s+\w+\]", re.I),
+]
+
+_SUMMARY_HEADING_PAT = re.compile(
+    r"^#{1,3}\s+(key rules|summary|overview|tl;?dr|quick reference|at a glance|important)",
+    re.I,
+)
+
+_DIRECTIVE_COUNT_PAT = re.compile(
+    r"\b(MUST|NEVER|CRITICAL|ALWAYS)\b",
+)
+
 
 def _check_content_quality(result, content, lines, regions,
                            filepath=None, root=None):
@@ -1280,6 +1295,42 @@ def _check_content_quality(result, content, lines, regions,
                     rule_id="CONTENT001",
                 ))
                 break
+
+    # CONTENT007: placeholder text
+    for i, (line, rgn) in enumerate(zip(lines, regions)):
+        if rgn != "content":
+            continue
+        for pat in _PLACEHOLDER_TEXT_PATS:
+            if pat.search(line):
+                result.issues.append(Issue(
+                    category="content", severity="info",
+                    message=f"Placeholder text found: '{pat.pattern[:30]}'"
+                    " — may indicate incomplete instructions",
+                    fix="Replace placeholder text with"
+                    " actual instructions or remove.",
+                    rule_id="CONTENT007", line=i + 1,
+                ))
+                return
+
+    # CONTENT002: missing summary heading for long files
+    if len(lines) > 200:
+        directive_count = sum(
+            len(_DIRECTIVE_COUNT_PAT.findall(line))
+            for line, rgn in zip(lines, regions)
+            if rgn == "content"
+        )
+        if directive_count >= 3:
+            first_30 = "\n".join(lines[:30])
+            if not _SUMMARY_HEADING_PAT.search(first_30):
+                result.issues.append(Issue(
+                    category="content", severity="suggestion",
+                    message=f"Long file ({len(lines)} lines,"
+                    f" {directive_count} directives)"
+                    " without a summary heading in first 30 lines",
+                    fix="Add a '## Key Rules' or '## TL;DR' section"
+                    " near the top for quick orientation.",
+                    rule_id="CONTENT002",
+                ))
 
 
 def _check_agent_traps(result, content_text, lines, regions):
