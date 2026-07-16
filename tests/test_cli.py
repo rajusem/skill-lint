@@ -339,3 +339,50 @@ def test_supply_chain_cli(tmp_path):
     result = runner.invoke(main, [str(tmp_path)])
     assert result.exit_code == 0
     assert "SUPPLY001" in result.output
+
+
+def test_fix_dry_run_shows_diff(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Rules\nPlease verify output.\nPlease check format.\nPlease run tests.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, ["fix", str(tmp_path), "--dry-run"])
+    assert result.exit_code == 0
+    assert "dry-run" in result.output
+    assert f.read_text().startswith("# Rules\nPlease")
+
+
+def test_fix_modifies_file(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Rules\nPlease verify output.\nPlease check format.\nPlease run tests.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, ["fix", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "Please" not in f.read_text()
+
+
+def test_fix_no_changes_when_clean(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Rules\nVerify output format.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, ["fix", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "No fixable issues" in result.output
+
+
+def test_fix_content008_adds_closing_fence(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Rules\n```\nsome code\n")
+    runner = CliRunner()
+    result = runner.invoke(main, ["fix", str(tmp_path)])
+    assert result.exit_code == 0
+    assert f.read_text().rstrip().endswith("```")
+
+
+def test_fix_removes_hedging(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Rules\nTry to verify output.\nTry to check tests.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, ["fix", str(tmp_path)])
+    assert result.exit_code == 0
+    content = f.read_text()
+    assert "Try to" not in content

@@ -147,6 +147,49 @@ def scan(path, fmt, severity, verbose, disable, fail_on,
 
 
 @main.command()
+@click.argument("path", default=".")
+@click.option("--dry-run", is_flag=True, help="Preview changes without modifying files")
+def fix(path, dry_run):
+    """Apply safe deterministic fixes to instruction files."""
+    from pathlib import Path
+
+    from skill_lint.fixer import apply_fixes
+    from skill_lint.scanner import _analyze_file, _discover_files
+
+    target = Path(path).resolve()
+    root = target if target.is_dir() else target.parent
+    files = _discover_files(root) if target.is_dir() else [target]
+
+    total_fixed = 0
+    for filepath in files:
+        result = _analyze_file(filepath, root)
+        original, fixed = apply_fixes(filepath, result.issues, dry_run=dry_run)
+        if original != fixed:
+            total_fixed += 1
+            rel = filepath.relative_to(root) if filepath.is_relative_to(root) else filepath
+            if dry_run:
+                click.echo(f"[dry-run] {rel}:")
+                for i, (o, f) in enumerate(
+                    zip(original.splitlines(), fixed.splitlines())
+                ):
+                    if o != f:
+                        click.echo(f"  L{i + 1}: -{o}")
+                        click.echo(f"  L{i + 1}: +{f}")
+                if len(fixed.splitlines()) > len(original.splitlines()):
+                    for line in fixed.splitlines()[len(original.splitlines()):]:
+                        click.echo(f"  L+: +{line}")
+            else:
+                click.echo(f"Fixed: {rel}")
+
+    if total_fixed == 0:
+        click.echo("No fixable issues found.")
+    elif dry_run:
+        click.echo(f"\n{total_fixed} file(s) would be modified. Run without --dry-run to apply.")
+    else:
+        click.echo(f"\n{total_fixed} file(s) fixed.")
+
+
+@main.command()
 @click.argument("rule_id", required=False)
 def rule(rule_id):
     """Show documentation for a rule, or list all rules."""
