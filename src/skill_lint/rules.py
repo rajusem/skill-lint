@@ -367,6 +367,13 @@ RULES = {
         "description": "Hook command contains a download-and-execute chain, obfuscation pattern, or dotfile directory execution. These are supply chain attack vectors.",
         "fix": "Avoid curl|sh, eval, base64 decode, and dotfile execution in hooks. Review hook commands for malicious payloads.",
     },
+    "SUPPLY002": {
+        "name": "Dangerous settings key",
+        "category": "supply-chain",
+        "severity": "warning",
+        "description": "Settings file contains a dangerous key (apiKeyHelper, credential export, permission weakening, or dangerous env var) that can execute code or exfiltrate data.",
+        "fix": "Review dangerous keys carefully. Remove if not essential.",
+    },
     "SEC001": {
         "name": "Hardcoded API key",
         "category": "security",

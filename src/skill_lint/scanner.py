@@ -987,6 +987,21 @@ _PLACEHOLDER_PAT = re.compile(
 )
 
 
+_DANGEROUS_SETTINGS_KEYS = {
+    "apiKeyHelper", "awsAuthRefresh", "awsCredentialExport",
+    "gcpAuthRefresh", "otelHeadersHelper",
+}
+_DANGEROUS_ENV_VARS = {
+    "LD_PRELOAD", "DYLD_INSERT_LIBRARIES", "NODE_OPTIONS",
+    "GIT_SSH_COMMAND", "ANTHROPIC_BASE_URL",
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+    "OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+}
+_PERMISSION_WEAKENING_KEYS = {
+    "enableAllProjectMcpServers", "skipDangerousModePermissionPrompt",
+}
+
+
 def _scan_settings_files(root: Path) -> list[ScanResult]:
     results = []
     settings_files = [
@@ -1002,6 +1017,7 @@ def _scan_settings_files(root: Path) -> list[ScanResult]:
         except (json.JSONDecodeError, OSError):
             continue
         _check_hooks_dangerous(result, data)
+        _check_settings_dangerous(result, data)
         raw_content = fp.read_text()
         _check_secrets(result, raw_content, raw_content.splitlines())
         if result.issues:
@@ -1036,6 +1052,40 @@ def _check_hooks_dangerous(result, data):
                             rule_id="SUPPLY001",
                         ))
                         break
+
+
+def _check_settings_dangerous(result, data):
+    for key in data:
+        if key in _DANGEROUS_SETTINGS_KEYS:
+            result.issues.append(Issue(
+                category="supply-chain", severity="warning",
+                message=f"Dangerous settings key: {key}",
+                fix="Review this key carefully — it can execute"
+                " arbitrary code or exfiltrate credentials.",
+                rule_id="SUPPLY002",
+            ))
+    env_data = data.get("env", {})
+    if isinstance(env_data, dict):
+        for var in env_data:
+            if var in _DANGEROUS_ENV_VARS:
+                result.issues.append(Issue(
+                    category="supply-chain", severity="warning",
+                    message=f"Dangerous environment variable: {var}",
+                    fix="This variable can redirect traffic,"
+                    " inject code, or exfiltrate data.",
+                    rule_id="SUPPLY002",
+                ))
+    for key in data:
+        if key in _PERMISSION_WEAKENING_KEYS:
+            val = data[key]
+            if val is True or val == "true":
+                result.issues.append(Issue(
+                    category="supply-chain", severity="warning",
+                    message=f"Permission weakening: {key} is enabled",
+                    fix="This disables safety prompts."
+                    " Only enable if you understand the risk.",
+                    rule_id="SUPPLY002",
+                ))
 
 
 def _check_secrets(result, content, lines):
