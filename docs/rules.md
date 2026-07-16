@@ -1,6 +1,6 @@
 # Rule Reference
 
-Auto-generated from rules.py. 50 rules across 12 categories.
+Auto-generated from rules.py. 61 rules across 13 categories.
 
 ## token-cost (11 rules)
 
@@ -437,7 +437,35 @@ Root governance file (CLAUDE.md, AGENTS.md) contradicts a child skill or agent f
 
 ---
 
-## content (1 rule)
+## content (5 rules)
+
+### CONTENT001: Tautological instruction
+- **Severity**: suggestion
+
+Boilerplate preamble like 'You are a helpful assistant' or 'follow instructions carefully'. The model already does this by default.
+
+**Fix**: Remove boilerplate. It wastes tokens without changing behavior.
+
+---
+
+### CONTENT002: Missing summary heading
+- **Severity**: suggestion
+- **Threshold**: 200+ lines, 3+ directives, no summary heading
+
+Long file (200+ lines) with 3+ directives (MUST/NEVER/CRITICAL/ALWAYS) but no summary heading in the first 30 lines.
+
+**Fix**: Add a '## Key Rules' or '## TL;DR' section near the top for quick orientation.
+
+---
+
+### CONTENT007: Placeholder text
+- **Severity**: info
+
+TODO, FIXME, or bracket placeholders found. May indicate incomplete instructions.
+
+**Fix**: Replace placeholder text with actual instructions or remove.
+
+---
 
 ### CONTENT008: Unclosed code fence
 - **Severity**: warning
@@ -448,7 +476,16 @@ Code fence opened but never closed. Content after the opening fence is hidden fr
 
 ---
 
-## agent-safety (3 rules)
+### CONTENT009: Deprecated model reference
+- **Severity**: suggestion
+
+References a deprecated or obsolete model name. May produce unexpected behavior or errors.
+
+**Fix**: Update to a current model name (e.g. claude-sonnet-4-5, gpt-4o).
+
+---
+
+## agent-safety (5 rules)
 
 ### TRAP001: Exact math instruction
 - **Severity**: suggestion
@@ -477,7 +514,25 @@ Instruction asks the agent to manually parse or modify structured data (JSON, XM
 
 ---
 
-## supply-chain (1 rule)
+### TRAP004: Counting instruction
+- **Severity**: suggestion
+
+Instruction asks the agent to count items. LLMs are unreliable at precise counting and may hallucinate numbers.
+
+**Fix**: Use wc, grep -c, or a script for counting. Agents should call tools for counting, not count inline.
+
+---
+
+### TRAP005: Randomness instruction
+- **Severity**: suggestion
+
+Instruction asks the agent to generate random/unique values. LLMs cannot produce true randomness — outputs may collide or be predictable.
+
+**Fix**: Use crypto.randomUUID(), uuid.uuid4(), or the secrets module. Agents should call libraries for randomness.
+
+---
+
+## supply-chain (2 rules)
 
 ### SUPPLY001: Dangerous hook command
 - **Severity**: error
@@ -485,6 +540,15 @@ Instruction asks the agent to manually parse or modify structured data (JSON, XM
 Hook command contains a download-and-execute chain, obfuscation pattern, or dotfile directory execution. These are supply chain attack vectors.
 
 **Fix**: Avoid curl|sh, eval, base64 decode, and dotfile execution in hooks. Review hook commands for malicious payloads.
+
+---
+
+### SUPPLY002: Dangerous settings key
+- **Severity**: warning
+
+Settings file contains a dangerous key (apiKeyHelper, credential export, permission weakening, or dangerous env var) that can execute code or exfiltrate data.
+
+**Fix**: Review dangerous keys carefully. Remove if not essential.
 
 ---
 
@@ -496,5 +560,43 @@ Hook command contains a download-and-execute chain, obfuscation pattern, or dotf
 Possible API key or credential detected in an instruction file. Hardcoded secrets risk exposure through version control.
 
 **Fix**: Remove hardcoded credentials. Use environment variables or a secrets manager.
+
+---
+
+## drift (4 rules)
+
+### DRIFT001: Package manager mismatch
+- **Severity**: suggestion
+
+Instruction references a package manager (npm/pip) but the project uses a different one (pnpm/yarn/bun/uv/pipenv). Mismatched commands cause failed installs.
+
+**Fix**: Update commands to match the project's actual package manager.
+
+---
+
+### DRIFT002: Stale dependency reference
+- **Severity**: suggestion
+
+Instruction references a dependency that is not in the project's package.json or pyproject.toml. The dependency may have been removed.
+
+**Fix**: Verify the dependency is still used. Remove stale references to avoid misleading agents.
+
+---
+
+### DRIFT003: Command mismatch
+- **Severity**: suggestion
+
+Instruction references a build tool (make/cargo/gradle) but the required config file does not exist.
+
+**Fix**: Verify the build tool is configured. Commands without matching config files fail.
+
+---
+
+### DRIFT004: Tool reference mismatch
+- **Severity**: info
+
+Instruction references a deprecated or superseded tool when a modern alternative is already configured in the project.
+
+**Fix**: Consider updating references to match current project tooling.
 
 ---

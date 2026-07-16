@@ -2,7 +2,7 @@
 
 Linter for AI instruction files — skills, prompts, and agent specs.
 
-skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md, .cursorrules, .github/copilot-instructions.md, .github/instructions/, and agent/skill directories) for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 50 rules across 12 categories with fix suggestions.
+skill-lint scans AI instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md, .cursorrules, .github/copilot-instructions.md, .github/instructions/, and agent/skill directories) for issues that cause token waste, hallucination risk, and unpredictable agent behavior. 61 rules across 13 categories with fix suggestions and auto-fix support.
 
 ## Quick Start
 
@@ -16,8 +16,10 @@ skill-lint . --format sarif --fail-on warning   # CI gate (severity)
 skill-lint . --fail-under 80                    # CI gate (score)
 skill-lint . -v                                 # Verbose
 skill-lint . --exclude "vendor/*.md"            # Exclude patterns
+skill-lint fix . --dry-run                      # Preview auto-fixes
+skill-lint fix .                                # Apply safe fixes
 skill-lint rule TCOST001                        # Explain a rule
-skill-lint rule                                 # List all 50 rules
+skill-lint rule                                 # List all 61 rules
 ```
 
 ## What It Checks
@@ -32,10 +34,11 @@ skill-lint rule                                 # List all 50 rules
 | Best practice | 6 | No model, no error handling, model-complexity mismatch, options without default |
 | Structure | 7 | Broken refs, encoding, file too large |
 | Cross-file | 1 | Contradictions between CLAUDE.md and skill files |
-| Agent safety | 3 | Math traps, regex generation, structured data editing |
-| Supply chain | 1 | Dangerous hook commands (curl\|sh, eval, base64, dotfile execution) |
+| Agent safety | 5 | Math traps, regex, structured data, counting, randomness |
+| Supply chain | 2 | Dangerous hooks, dangerous settings keys |
 | Security | 1 | Hardcoded API keys and credentials (16 provider patterns) |
-| Content | 1 | Unclosed code fences hiding content from analysis |
+| Content | 5 | Unclosed fences, deprecated models, tautologies, placeholders, missing summary |
+| Drift | 4 | Package manager, dependency, command, and tool mismatches |
 
 Each file scored 0-100 with actionable fix suggestions.
 
@@ -75,7 +78,7 @@ skill-lint . --fail-on warning
 ```yaml
 repos:
   - repo: https://github.com/rajusem/skill-lint
-    rev: v0.4.0
+    rev: v0.5.0
     hooks:
       - id: skill-lint
 ```
@@ -189,7 +192,7 @@ The skill runs `skill-lint`, interprets findings, and proposes fixes with before
 
 ## Rule Reference
 
-See [docs/rules.md](docs/rules.md) for detailed documentation on all 44 rules.
+See [docs/rules.md](docs/rules.md) for detailed documentation on all 61 rules.
 
 ## License
 

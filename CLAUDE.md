@@ -16,8 +16,9 @@ uv run ruff check src/ # lint
 ```
 src/skill_lint/
 ├── cli.py              # CLI entry point (Click group + DefaultGroup)
+├── fixer.py            # Auto-fix engine (skill-lint fix)
 ├── rules.py            # Rule metadata for skill-lint rule command
-└── scanner.py          # Scanner engine (50 rules across 12 categories)
+└── scanner.py          # Scanner engine (61 rules across 13 categories)
 tests/
 ├── test_scanner.py     # Scanner tests
 └── test_cli.py         # CLI tests
