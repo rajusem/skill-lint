@@ -3381,3 +3381,46 @@ class TestDRIFT002StaleDep:
         skill.write_text("# Stack\nUses Python 3.11 for the backend.\n")
         result = _analyze_file(skill, tmp_path)
         assert not any(i.rule_id == "DRIFT002" for i in result.issues)
+
+
+# ── DRIFT003: Command mismatch ───────────────────────────────────
+
+
+class TestDRIFT003CommandMismatch:
+    def test_make_without_makefile_flagged(self, tmp_path):
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Build\nRun make test to verify.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert any(i.rule_id == "DRIFT003" for i in result.issues)
+
+    def test_make_with_makefile_not_flagged(self, tmp_path):
+        (tmp_path / "Makefile").write_text("")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Build\nRun make test to verify.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT003" for i in result.issues)
+
+    def test_cargo_without_cargo_toml_flagged(self, tmp_path):
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Build\ncargo test\n")
+        result = _analyze_file(skill, tmp_path)
+        assert any(i.rule_id == "DRIFT003" for i in result.issues)
+
+
+# ── DRIFT004: Tool reference mismatch ────────────────────────────
+
+
+class TestDRIFT004ToolMismatch:
+    def test_requirements_txt_with_pyproject_flagged(self, tmp_path):
+        (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Setup\npip install -r requirements.txt\n")
+        result = _analyze_file(skill, tmp_path)
+        assert any(i.rule_id == "DRIFT004" for i in result.issues)
+
+    def test_docker_compose_with_compose_yaml_flagged(self, tmp_path):
+        (tmp_path / "compose.yaml").write_text("")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Deploy\ndocker-compose up -d\n")
+        result = _analyze_file(skill, tmp_path)
+        assert any(i.rule_id == "DRIFT004" for i in result.issues)

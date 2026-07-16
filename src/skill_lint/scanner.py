@@ -1108,6 +1108,20 @@ _ADJECTIVE_STOPLIST = {
 }
 
 
+_DRIFT_CMD_PATS = [
+    (re.compile(r"\bmake\s+\w+\b", re.I), ["Makefile", "makefile", "GNUmakefile"], "make"),
+    (re.compile(r"\bcargo\s+(test|build|run)\b", re.I), ["Cargo.toml"], "cargo"),
+    (re.compile(r"\bgradle\s+\w+\b", re.I), ["build.gradle", "build.gradle.kts"], "gradle"),
+]
+
+_DRIFT_TOOL_PATS = [
+    (re.compile(r"\brequirements\.txt\b", re.I), ["pyproject.toml"],
+     "pyproject.toml exists — consider using it instead of requirements.txt"),
+    (re.compile(r"\bdocker-compose\b", re.I), ["compose.yaml", "compose.yml"],
+     "compose.yaml exists — docker-compose is deprecated, use docker compose"),
+]
+
+
 def _extract_project_deps(root: Path) -> set[str]:
     """Extract dependency names from package.json and pyproject.toml."""
     deps: set[str] = set()
@@ -1224,24 +1238,56 @@ def _check_drift(result, content_text, lines, regions, root, project_deps):
                     return
 
     # DRIFT002: stale dependency reference
-    if not project_deps:
-        return
-    for m in _DRIFT_DEP_PAT.finditer(content_text):
-        dep_name = m.group(2).lower()
-        if dep_name in _LANGUAGE_STOPLIST:
+    if project_deps:
+        for m in _DRIFT_DEP_PAT.finditer(content_text):
+            dep_name = m.group(2).lower()
+            if dep_name in _LANGUAGE_STOPLIST:
+                continue
+            if dep_name in _ADJECTIVE_STOPLIST:
+                continue
+            if dep_name not in project_deps:
+                result.issues.append(Issue(
+                    category="drift", severity="suggestion",
+                    message=f"References '{m.group(2)}' but it's not in"
+                    " project dependencies",
+                    fix="Verify the dependency is still used."
+                    " Stale references mislead agents about the tech stack.",
+                    rule_id="DRIFT002",
+                ))
+                break
+
+    # DRIFT003: command mismatch
+    for i, (line, rgn) in enumerate(zip(lines, regions)):
+        if rgn != "content":
             continue
-        if dep_name in _ADJECTIVE_STOPLIST:
+        for pat, required_files, tool_name in _DRIFT_CMD_PATS:
+            if pat.search(line):
+                if not any((root / f).exists() for f in required_files):
+                    result.issues.append(Issue(
+                        category="drift", severity="suggestion",
+                        message=f"References '{tool_name}'"
+                        f" but {required_files[0]} does not exist",
+                        fix="Verify the build tool is configured."
+                        " Commands without matching config files fail.",
+                        rule_id="DRIFT003", line=i + 1,
+                    ))
+                    return
+
+    # DRIFT004: tool reference mismatch
+    for i, (line, rgn) in enumerate(zip(lines, regions)):
+        if rgn != "content":
             continue
-        if dep_name not in project_deps:
-            result.issues.append(Issue(
-                category="drift", severity="suggestion",
-                message=f"References '{m.group(2)}' but it's not in"
-                " project dependencies",
-                fix="Verify the dependency is still used."
-                " Stale references mislead agents about the tech stack.",
-                rule_id="DRIFT002",
-            ))
-            return
+        for pat, indicator_files, msg in _DRIFT_TOOL_PATS:
+            if pat.search(line):
+                if any((root / f).exists() for f in indicator_files):
+                    result.issues.append(Issue(
+                        category="drift", severity="info",
+                        message=msg,
+                        fix="Consider updating references to match"
+                        " current project tooling.",
+                        rule_id="DRIFT004", line=i + 1,
+                    ))
+                    return
 
 
 def _parse_content_regions(lines: list[str]) -> list[str]:

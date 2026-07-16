@@ -388,4 +388,18 @@ RULES = {
         "description": "Instruction references a dependency that is not in the project's package.json or pyproject.toml. The dependency may have been removed.",
         "fix": "Verify the dependency is still used. Remove stale references to avoid misleading agents.",
     },
+    "DRIFT003": {
+        "name": "Command mismatch",
+        "category": "drift",
+        "severity": "suggestion",
+        "description": "Instruction references a build tool (make/cargo/gradle) but the required config file does not exist.",
+        "fix": "Verify the build tool is configured. Commands without matching config files fail.",
+    },
+    "DRIFT004": {
+        "name": "Tool reference mismatch",
+        "category": "drift",
+        "severity": "info",
+        "description": "Instruction references a deprecated or superseded tool when a modern alternative is already configured in the project.",
+        "fix": "Consider updating references to match current project tooling.",
+    },
 }
