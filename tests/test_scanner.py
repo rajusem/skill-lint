@@ -3424,3 +3424,61 @@ class TestDRIFT004ToolMismatch:
         skill.write_text("# Deploy\ndocker-compose up -d\n")
         result = _analyze_file(skill, tmp_path)
         assert any(i.rule_id == "DRIFT004" for i in result.issues)
+
+
+# ── TRAP004: Counting instruction ─────────────────────────────────
+
+
+class TestTRAP004Counting:
+    def test_count_files_flagged(self):
+        content = "# Task\ncount the files in the directory"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP004" for i in result.issues)
+
+    def test_count_in_code_fence_not_flagged(self):
+        content = "# Title\n```\ncount the files in the output\n```"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP004" for i in result.issues)
+
+    def test_list_files_not_flagged(self):
+        content = "# Task\nlist the files in the directory"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP004" for i in result.issues)
+
+
+# ── TRAP005: Randomness instruction ──────────────────────────────
+
+
+class TestTRAP005Randomness:
+    def test_generate_uuid_flagged(self):
+        content = "# Task\ngenerate a UUID for each record"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert any(i.rule_id == "TRAP005" for i in result.issues)
+
+    def test_generate_uuid_with_crypto_not_flagged(self):
+        content = "# Task\ngenerate a UUID using crypto.randomUUID()"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP005" for i in result.issues)
+
+    def test_create_random_in_code_fence_not_flagged(self):
+        content = "# Title\n```\ncreate a random token\n```"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_agent_traps(result, content, lines, regions)
+        assert not any(i.rule_id == "TRAP005" for i in result.issues)

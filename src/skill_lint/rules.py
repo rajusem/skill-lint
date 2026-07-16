@@ -388,6 +388,20 @@ RULES = {
         "description": "Instruction references a dependency that is not in the project's package.json or pyproject.toml. The dependency may have been removed.",
         "fix": "Verify the dependency is still used. Remove stale references to avoid misleading agents.",
     },
+    "TRAP004": {
+        "name": "Counting instruction",
+        "category": "agent-safety",
+        "severity": "suggestion",
+        "description": "Instruction asks the agent to count items. LLMs are unreliable at precise counting and may hallucinate numbers.",
+        "fix": "Use wc, grep -c, or a script for counting. Agents should call tools for counting, not count inline.",
+    },
+    "TRAP005": {
+        "name": "Randomness instruction",
+        "category": "agent-safety",
+        "severity": "suggestion",
+        "description": "Instruction asks the agent to generate random/unique values. LLMs cannot produce true randomness — outputs may collide or be predictable.",
+        "fix": "Use crypto.randomUUID(), uuid.uuid4(), or the secrets module. Agents should call libraries for randomness.",
+    },
     "DRIFT003": {
         "name": "Command mismatch",
         "category": "drift",

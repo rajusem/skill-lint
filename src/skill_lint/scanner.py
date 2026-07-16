@@ -1072,6 +1072,17 @@ _TRAP_PARSE_PAT = re.compile(
 _TRAP_TOOL_PAT = re.compile(
     r"\b(jq|yq|xmlstarlet|ast-grep|xsltproc|xmllint|shyaml)\b", re.I,
 )
+_TRAP_COUNT_PAT = re.compile(
+    r"\b(count|tally)\b.{0,20}\b(items|files|lines|occurrences|instances|elements|entries|records|rows)\b",
+    re.I,
+)
+_TRAP_RANDOM_PAT = re.compile(
+    r"\b(generate|create)\b.{0,15}\b(UUID|GUID|hash|token|random|nonce|salt)\b", re.I,
+)
+_TRAP_CRYPTO_PAT = re.compile(
+    r"\b(crypto\.\w+|uuid\.\w+|secrets\.\w+|randomUUID|uuidv4|os\.urandom|SecureRandom|hashlib\.\w+)\b",
+    re.I,
+)
 _TRAP_NEGATION_PAT = re.compile(
     r"\b(do not|don't|never|avoid|should not|must not|prohibited|warning|risk)",
     re.I,
@@ -1177,6 +1188,8 @@ def _check_agent_traps(result, content_text, lines, regions):
     found_trap001 = False
     found_trap002 = False
     found_trap003 = False
+    found_trap004 = False
+    found_trap005 = False
     for i, (line, rgn) in enumerate(zip(lines, regions)):
         if rgn != "content":
             continue
@@ -1212,6 +1225,29 @@ def _check_agent_traps(result, content_text, lines, regions):
                     rule_id="TRAP003", line=i + 1,
                 ))
                 found_trap003 = True
+        if not found_trap004 and _TRAP_COUNT_PAT.search(line):
+            result.issues.append(Issue(
+                category="agent-safety", severity="suggestion",
+                message="Instruction asks the agent to count items"
+                " — LLMs are unreliable at precise counting",
+                fix="Use wc, grep -c, or a script for counting."
+                " Agents should call tools for counting, not count inline.",
+                rule_id="TRAP004", line=i + 1,
+            ))
+            found_trap004 = True
+        if not found_trap005 and _TRAP_RANDOM_PAT.search(line):
+            if not _TRAP_CRYPTO_PAT.search(line):
+                result.issues.append(Issue(
+                    category="agent-safety", severity="suggestion",
+                    message="Instruction asks the agent to generate"
+                    " random/unique values — LLMs cannot produce"
+                    " true randomness",
+                    fix="Use crypto.randomUUID(), uuid.uuid4(), or"
+                    " secrets module. Agents should call libraries"
+                    " for randomness, not generate inline.",
+                    rule_id="TRAP005", line=i + 1,
+                ))
+                found_trap005 = True
 
 
 def _check_drift(result, content_text, lines, regions, root, project_deps):
