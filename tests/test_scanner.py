@@ -3307,3 +3307,77 @@ class TestSecretDetection:
         result = ScanResult(file="test.md")
         _check_secrets(result, content, content.splitlines())
         assert not any(i.rule_id == "SEC001" for i in result.issues)
+
+
+# ── DRIFT001: Package manager mismatch ────────────────────────────
+
+
+class TestDRIFT001PackageManager:
+    def test_npm_with_pnpm_lock_flagged(self, tmp_path):
+        (tmp_path / "pnpm-lock.yaml").write_text("")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Project\nRun npm install to set up.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert any(i.rule_id == "DRIFT001" for i in result.issues)
+
+    def test_npm_without_lockfile_not_flagged(self, tmp_path):
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Project\nRun npm install to set up.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT001" for i in result.issues)
+
+    def test_pip_with_uv_lock_flagged(self, tmp_path):
+        (tmp_path / "uv.lock").write_text("")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Setup\npip install -r requirements.txt\n")
+        result = _analyze_file(skill, tmp_path)
+        assert any(i.rule_id == "DRIFT001" for i in result.issues)
+
+    def test_npm_in_code_fence_not_flagged(self, tmp_path):
+        (tmp_path / "pnpm-lock.yaml").write_text("")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Project\n```\nnpm install\n```\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT001" for i in result.issues)
+
+    def test_dont_use_npm_not_flagged(self, tmp_path):
+        (tmp_path / "pnpm-lock.yaml").write_text("")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Project\nDon't use npm install, use pnpm.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT001" for i in result.issues)
+
+
+# ── DRIFT002: Stale dependency reference ──────────────────────────
+
+
+class TestDRIFT002StaleDep:
+    def test_missing_dep_flagged(self, tmp_path):
+        (tmp_path / "package.json").write_text(
+            '{"dependencies": {"react": "^18.0"}}')
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Stack\nWe use lodash for utility functions.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert any(i.rule_id == "DRIFT002" for i in result.issues)
+
+    def test_present_dep_not_flagged(self, tmp_path):
+        (tmp_path / "package.json").write_text(
+            '{"dependencies": {"react": "^18.0"}}')
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Stack\nWe use React for the frontend.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT002" for i in result.issues)
+
+    def test_no_package_json_not_flagged(self, tmp_path):
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Stack\nWe use lodash for utilities.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT002" for i in result.issues)
+
+    def test_language_name_not_flagged(self, tmp_path):
+        (tmp_path / "package.json").write_text(
+            '{"dependencies": {"react": "^18.0"}}')
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Stack\nUses Python 3.11 for the backend.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT002" for i in result.issues)

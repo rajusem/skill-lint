@@ -374,4 +374,18 @@ RULES = {
         "description": "Possible API key or credential detected in an instruction file. Hardcoded secrets risk exposure through version control.",
         "fix": "Remove hardcoded credentials. Use environment variables or a secrets manager.",
     },
+    "DRIFT001": {
+        "name": "Package manager mismatch",
+        "category": "drift",
+        "severity": "suggestion",
+        "description": "Instruction references a package manager (npm/pip) but the project uses a different one (pnpm/yarn/bun/uv/pipenv). Mismatched commands cause failed installs.",
+        "fix": "Update commands to match the project's actual package manager.",
+    },
+    "DRIFT002": {
+        "name": "Stale dependency reference",
+        "category": "drift",
+        "severity": "suggestion",
+        "description": "Instruction references a dependency that is not in the project's package.json or pyproject.toml. The dependency may have been removed.",
+        "fix": "Verify the dependency is still used. Remove stale references to avoid misleading agents.",
+    },
 }

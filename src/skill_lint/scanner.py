@@ -667,9 +667,11 @@ def _run_scan_on_dir(
         )
         console.print()
 
+    project_deps = _extract_project_deps(root)
+
     results = []
     for filepath in files:
-        result = _analyze_file(filepath, root, thresholds)
+        result = _analyze_file(filepath, root, thresholds, project_deps)
         results.append(result)
 
     # Cross-file conflict detection (before disable/baseline pipeline)
@@ -842,6 +844,7 @@ def _estimate_tokens(text: str) -> int:
 
 def _analyze_file(
     filepath: Path, root: Path, thresholds: dict | None = None,
+    project_deps: set[str] | None = None,
 ) -> ScanResult:
     rel_path = str(filepath.relative_to(root))
 
@@ -922,6 +925,8 @@ def _analyze_file(
     _check_agent_traps(result, content_text, lines, regions)
     # SEC001 intentionally scans all lines including code fences — keys appear in examples
     _check_secrets(result, content, lines)
+    deps = project_deps if project_deps is not None else _extract_project_deps(root)
+    _check_drift(result, content_text, lines, regions, root, deps)
 
     # Run custom rules from registry
     if RULE_REGISTRY:
@@ -1072,6 +1077,60 @@ _TRAP_NEGATION_PAT = re.compile(
     re.I,
 )
 
+# ── DRIFT patterns ────────────────────────────────────────────────
+
+_DRIFT_PKG_PATS = [
+    (re.compile(r"\bnpm\s+(install|run|test|ci)\b", re.I),
+     ["pnpm-lock.yaml", "pnpm-workspace.yaml"], "pnpm"),
+    (re.compile(r"\bnpm\s+(install|run|test|ci)\b", re.I),
+     ["yarn.lock"], "yarn"),
+    (re.compile(r"\bnpm\s+(install|run|test|ci)\b", re.I),
+     ["bun.lockb", "bun.lock"], "bun"),
+    (re.compile(r"\bpip\s+install\b", re.I),
+     ["uv.lock"], "uv"),
+    (re.compile(r"\bpip\s+install\b", re.I),
+     ["Pipfile.lock", "Pipfile"], "pipenv"),
+]
+
+_DRIFT_DEP_PAT = re.compile(
+    r"\b(we use|built with|requires|depends on|uses|powered by)"
+    r"\s+(?:(?:the|a|an|our|its|some|any|this|that)\s+)?"
+    r"([A-Za-z][\w.-]+)\b", re.I,
+)
+_LANGUAGE_STOPLIST = {
+    "python", "javascript", "typescript", "go", "rust", "java", "ruby",
+    "c", "c++", "swift", "kotlin", "scala", "perl", "php", "r", "lua",
+    "html", "css", "sql", "bash", "shell", "zsh",
+}
+_ADJECTIVE_STOPLIST = {
+    "latest", "custom", "new", "old", "current", "existing", "underlying",
+    "internal", "external", "standard", "default", "modern", "legacy",
+}
+
+
+def _extract_project_deps(root: Path) -> set[str]:
+    """Extract dependency names from package.json and pyproject.toml."""
+    deps: set[str] = set()
+    pkg = root / "package.json"
+    if pkg.exists():
+        try:
+            data = json.loads(pkg.read_text())
+            for key in ("dependencies", "devDependencies"):
+                deps.update(d.lower() for d in data.get(key, {}))
+        except Exception:
+            pass
+    pyproj = root / "pyproject.toml"
+    if pyproj.exists():
+        try:
+            import tomllib
+            data = tomllib.loads(pyproj.read_text())
+            for dep in data.get("project", {}).get("dependencies", []):
+                name = dep.split(">")[0].split("<")[0].split("=")[0].split("[")[0].strip()
+                deps.add(name.lower())
+        except Exception:
+            pass
+    return deps
+
 
 def _check_content_quality(result, content, lines, regions):
     if not regions or not lines or regions[-1] != "codefence":
@@ -1139,6 +1198,50 @@ def _check_agent_traps(result, content_text, lines, regions):
                     rule_id="TRAP003", line=i + 1,
                 ))
                 found_trap003 = True
+
+
+def _check_drift(result, content_text, lines, regions, root, project_deps):
+    """DRIFT001-002: detect mismatches between instructions and project reality."""
+    # DRIFT001: package manager mismatch
+    for i, (line, rgn) in enumerate(zip(lines, regions)):
+        if rgn != "content":
+            continue
+        if _TRAP_NEGATION_PAT.search(line):
+            continue
+        for pat, lock_files, actual_mgr in _DRIFT_PKG_PATS:
+            if pat.search(line):
+                if any((root / lf).exists() for lf in lock_files):
+                    result.issues.append(Issue(
+                        category="drift", severity="suggestion",
+                        message=f"Instruction references a package manager"
+                        f" but project uses {actual_mgr}"
+                        f" ({', '.join(lf for lf in lock_files if (root / lf).exists())} exists)",
+                        fix=f"Update to {actual_mgr} commands."
+                        " Mismatched package manager instructions"
+                        " cause failed installs and wasted agent cycles.",
+                        rule_id="DRIFT001", line=i + 1,
+                    ))
+                    return
+
+    # DRIFT002: stale dependency reference
+    if not project_deps:
+        return
+    for m in _DRIFT_DEP_PAT.finditer(content_text):
+        dep_name = m.group(2).lower()
+        if dep_name in _LANGUAGE_STOPLIST:
+            continue
+        if dep_name in _ADJECTIVE_STOPLIST:
+            continue
+        if dep_name not in project_deps:
+            result.issues.append(Issue(
+                category="drift", severity="suggestion",
+                message=f"References '{m.group(2)}' but it's not in"
+                " project dependencies",
+                fix="Verify the dependency is still used."
+                " Stale references mislead agents about the tech stack.",
+                rule_id="DRIFT002",
+            ))
+            return
 
 
 def _parse_content_regions(lines: list[str]) -> list[str]:
