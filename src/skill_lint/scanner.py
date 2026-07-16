@@ -921,7 +921,7 @@ def _analyze_file(
     _check_termination_conditions(result, content, lines, regions, filepath, root)
     _check_role_identity(result, content, lines, filepath)
     _check_compound_instructions(result, content, lines, regions)
-    _check_content_quality(result, content, lines, regions)
+    _check_content_quality(result, content, lines, regions, filepath, root)
     _check_agent_traps(result, content_text, lines, regions)
     # SEC001 intentionally scans all lines including code fences — keys appear in examples
     _check_secrets(result, content, lines)
@@ -1207,31 +1207,79 @@ def _extract_project_deps(root: Path) -> set[str]:
     return deps
 
 
-def _check_content_quality(result, content, lines, regions):
-    if not regions or not lines or regions[-1] != "codefence":
-        return
-    last_line = lines[-1].strip()
-    if re.match(r"^(`{3,}|~{3,})$", last_line):
-        run_len = 0
-        for r in reversed(regions):
-            if r == "codefence":
-                run_len += 1
-            else:
-                break
-        if run_len > 1:
-            return
-    open_line = None
-    for i in range(len(regions) - 1, -1, -1):
-        if i == 0 or regions[i - 1] != "codefence":
-            open_line = i + 1
+_BANNED_MODELS = re.compile(
+    r"\b(text-davinci-\w+|code-davinci-\w+|gpt-3\.5-turbo|"
+    r"claude-v1|claude-instant|claude-2\.\d|"
+    r"claude-3-opus|claude-3-sonnet|claude-3-haiku)\b", re.I,
+)
+
+_TAUTOLOGICAL_PATS = [
+    re.compile(r"^This file provides guidance to Claude Code\b", re.I | re.M),
+    re.compile(r"\b(you are a helpful assistant|be helpful and accurate)\b", re.I),
+    re.compile(r"\b(follow instructions carefully|follow the instructions)\b", re.I),
+]
+
+
+def _check_content_quality(result, content, lines, regions,
+                           filepath=None, root=None):
+    # CONTENT008: unclosed code fence
+    if regions and lines and regions[-1] == "codefence":
+        last_line = lines[-1].strip()
+        fire = True
+        if re.match(r"^(`{3,}|~{3,})$", last_line):
+            run_len = 0
+            for r in reversed(regions):
+                if r == "codefence":
+                    run_len += 1
+                else:
+                    break
+            if run_len > 1:
+                fire = False
+        if fire:
+            open_line = None
+            for i in range(len(regions) - 1, -1, -1):
+                if i == 0 or regions[i - 1] != "codefence":
+                    open_line = i + 1
+                    break
+            result.issues.append(Issue(
+                category="content", severity="warning",
+                message="Code fence opened but never closed"
+                " — content after this line is hidden from analysis",
+                fix="Add a closing ``` on its own line after the code block.",
+                rule_id="CONTENT008", line=open_line,
+            ))
+
+    # CONTENT009: banned/deprecated model references
+    for i, (line, rgn) in enumerate(zip(lines, regions)):
+        if rgn != "content":
+            continue
+        m = _BANNED_MODELS.search(line)
+        if m:
+            result.issues.append(Issue(
+                category="content", severity="suggestion",
+                message=f"References deprecated model '{m.group(1)}'"
+                " — may produce unexpected behavior",
+                fix="Update to a current model name"
+                " (e.g. claude-sonnet-4-5, gpt-4o).",
+                rule_id="CONTENT009", line=i + 1,
+            ))
             break
-    result.issues.append(Issue(
-        category="content", severity="warning",
-        message="Code fence opened but never closed"
-        " — content after this line is hidden from analysis",
-        fix="Add a closing ``` on its own line after the code block.",
-        rule_id="CONTENT008", line=open_line,
-    ))
+
+    # CONTENT001: tautological instructions (root files only)
+    is_root = filepath and root and _is_root_directive_file(filepath, root)
+    if is_root:
+        for pat in _TAUTOLOGICAL_PATS:
+            m = pat.search(content)
+            if m:
+                result.issues.append(Issue(
+                    category="content", severity="suggestion",
+                    message=f"Tautological instruction: '{m.group(0)[:60]}'"
+                    " — the model already does this by default",
+                    fix="Remove boilerplate preambles."
+                    " They waste tokens without changing behavior.",
+                    rule_id="CONTENT001",
+                ))
+                break
 
 
 def _check_agent_traps(result, content_text, lines, regions):

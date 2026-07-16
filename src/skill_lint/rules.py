@@ -332,6 +332,20 @@ RULES = {
         "description": "Root governance file (CLAUDE.md, AGENTS.md) contradicts a child skill or agent file.",
         "fix": "Align with root governance or add explicit override justification. Contradictions cause unpredictable agent behavior.",
     },
+    "CONTENT009": {
+        "name": "Deprecated model reference",
+        "category": "content",
+        "severity": "suggestion",
+        "description": "References a deprecated or obsolete model name. May produce unexpected behavior or errors.",
+        "fix": "Update to a current model name (e.g. claude-sonnet-4-5, gpt-4o).",
+    },
+    "CONTENT001": {
+        "name": "Tautological instruction",
+        "category": "content",
+        "severity": "suggestion",
+        "description": "Boilerplate preamble like 'You are a helpful assistant' or 'follow instructions carefully'. The model already does this by default.",
+        "fix": "Remove boilerplate. It wastes tokens without changing behavior.",
+    },
     "CONTENT008": {
         "name": "Unclosed code fence",
         "category": "content",

@@ -3512,3 +3512,57 @@ class TestSUPPLY002DangerousSettings:
         result = ScanResult(file=".claude/settings.json")
         _check_settings_dangerous(result, data)
         assert not any(i.rule_id == "SUPPLY002" for i in result.issues)
+
+
+# ── CONTENT009: Deprecated model references ──────────────────────
+
+
+class TestCONTENT009DeprecatedModels:
+    def test_deprecated_model_flagged(self):
+        content = "# Setup\nUse gpt-3.5-turbo for simple tasks."
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert any(i.rule_id == "CONTENT009" for i in result.issues)
+
+    def test_current_model_not_flagged(self):
+        content = "# Setup\nUse claude-sonnet-4-5 for coding."
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert not any(i.rule_id == "CONTENT009" for i in result.issues)
+
+    def test_deprecated_in_code_fence_not_flagged(self):
+        content = "# Setup\n```\nmodel: gpt-3.5-turbo\n```"
+        lines = content.splitlines()
+        regions = _parse_content_regions(lines)
+        result = ScanResult(file="test.md")
+        _check_content_quality(result, content, lines, regions)
+        assert not any(i.rule_id == "CONTENT009" for i in result.issues)
+
+
+# ── CONTENT001: Tautological instructions ────────────────────────
+
+
+class TestCONTENT001Tautological:
+    def test_boilerplate_preamble_flagged(self, tmp_path):
+        f = tmp_path / "CLAUDE.md"
+        f.write_text("This file provides guidance to Claude Code on how to work.\n")
+        result = _analyze_file(f, tmp_path)
+        assert any(i.rule_id == "CONTENT001" for i in result.issues)
+
+    def test_helpful_assistant_flagged(self, tmp_path):
+        f = tmp_path / "CLAUDE.md"
+        f.write_text("# Rules\nYou are a helpful assistant.\n")
+        result = _analyze_file(f, tmp_path)
+        assert any(i.rule_id == "CONTENT001" for i in result.issues)
+
+    def test_persona_in_skill_not_flagged(self, tmp_path):
+        d = tmp_path / "skills" / "review"
+        d.mkdir(parents=True)
+        f = d / "SKILL.md"
+        f.write_text("You are a helpful assistant for code review.\n")
+        result = _analyze_file(f, tmp_path)
+        assert not any(i.rule_id == "CONTENT001" for i in result.issues)
