@@ -35,14 +35,6 @@ _ZERO_VALUE_PATS = [
     re.compile(r"^\s*i appreciate.*$", re.I),
 ]
 
-FIXERS = {
-    "TCOST006": "_fix_filler_phrases",
-    "TCOST008": "_fix_hedging",
-    "TCOST009": "_fix_zero_value_lines",
-    "CONTENT008": "_fix_unclosed_fence",
-}
-
-
 def _recapitalize(text: str) -> str:
     """Re-capitalize the first letter if at sentence start."""
     if text and text[0].islower():

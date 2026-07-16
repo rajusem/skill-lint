@@ -3383,6 +3383,21 @@ class TestDRIFT002StaleDep:
         result = _analyze_file(skill, tmp_path)
         assert not any(i.rule_id == "DRIFT002" for i in result.issues)
 
+    def test_dep_in_code_fence_not_flagged(self, tmp_path):
+        (tmp_path / "package.json").write_text(
+            '{"dependencies": {"react": "^18.0"}}')
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Stack\n```\nwe use lodash\n```\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT002" for i in result.issues)
+
+    def test_corrupt_package_json_no_crash(self, tmp_path):
+        (tmp_path / "package.json").write_text("{invalid json")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Stack\nWe use lodash for utilities.\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT002" for i in result.issues)
+
 
 # ── DRIFT003: Command mismatch ───────────────────────────────────
 
@@ -3407,6 +3422,12 @@ class TestDRIFT003CommandMismatch:
         result = _analyze_file(skill, tmp_path)
         assert any(i.rule_id == "DRIFT003" for i in result.issues)
 
+    def test_make_in_code_fence_not_flagged(self, tmp_path):
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Build\n```\nmake test\n```\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT003" for i in result.issues)
+
 
 # ── DRIFT004: Tool reference mismatch ────────────────────────────
 
@@ -3425,6 +3446,19 @@ class TestDRIFT004ToolMismatch:
         skill.write_text("# Deploy\ndocker-compose up -d\n")
         result = _analyze_file(skill, tmp_path)
         assert any(i.rule_id == "DRIFT004" for i in result.issues)
+
+    def test_docker_compose_without_compose_yaml_not_flagged(self, tmp_path):
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Deploy\ndocker-compose up -d\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT004" for i in result.issues)
+
+    def test_requirements_in_code_fence_not_flagged(self, tmp_path):
+        (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n")
+        skill = tmp_path / "CLAUDE.md"
+        skill.write_text("# Setup\n```\npip install -r requirements.txt\n```\n")
+        result = _analyze_file(skill, tmp_path)
+        assert not any(i.rule_id == "DRIFT004" for i in result.issues)
 
 
 # ── TRAP004: Counting instruction ─────────────────────────────────

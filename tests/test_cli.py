@@ -386,3 +386,14 @@ def test_fix_removes_hedging(tmp_path):
     assert result.exit_code == 0
     content = f.read_text()
     assert "Try to" not in content
+
+
+def test_fix_removes_zero_value(tmp_path):
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# Rules\nYou are a helpful assistant.\nVerify output.\n")
+    runner = CliRunner()
+    result = runner.invoke(main, ["fix", str(tmp_path)])
+    assert result.exit_code == 0
+    content = f.read_text()
+    assert "helpful assistant" not in content
+    assert "Verify output" in content

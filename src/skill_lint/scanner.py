@@ -763,7 +763,7 @@ def _run_scan_on_dir(
             )
 
     # Count severities after disable+baseline, before display filter
-    counts: dict[str, int] = {"warning": 0, "suggestion": 0, "info": 0}
+    counts: dict[str, int] = {"error": 0, "warning": 0, "suggestion": 0, "info": 0}
     for r in results:
         for issue in r.issues:
             counts[issue.severity] = counts.get(issue.severity, 0) + 1
@@ -1013,12 +1013,12 @@ def _scan_settings_files(root: Path) -> list[ScanResult]:
             continue
         result = ScanResult(file=str(fp.relative_to(root)))
         try:
-            data = json.loads(fp.read_text())
+            raw_content = fp.read_text()
+            data = json.loads(raw_content)
         except (json.JSONDecodeError, OSError):
             continue
         _check_hooks_dangerous(result, data)
         _check_settings_dangerous(result, data)
-        raw_content = fp.read_text()
         _check_secrets(result, raw_content, raw_content.splitlines())
         if result.issues:
             results.append(result)
@@ -1166,13 +1166,43 @@ _LANGUAGE_STOPLIST = {
 _ADJECTIVE_STOPLIST = {
     "latest", "custom", "new", "old", "current", "existing", "underlying",
     "internal", "external", "standard", "default", "modern", "legacy",
+    "after", "both", "different", "multiple", "own", "same", "two",
+    "three", "four", "five", "local", "isolated", "hybrid", "linear",
+    "working", "something", "build", "curated", "changing", "non-standard",
+    "explicit", "async", "layered", "layer", "pointer",
+    "written", "high", "low", "compatible", "specific", "certain",
+    "following", "above", "below", "given", "proper", "correct",
+    "simple", "complex", "full", "complete", "partial", "other",
+    "single", "various", "several", "each", "every", "any",
+}
+_COMMON_WORD_STOPLIST = {
+    "the", "a", "an", "and", "or", "but", "for", "with", "from",
+    "user", "users", "them", "their", "this", "that", "these", "those",
+    "skill", "skills", "tool", "tools", "file", "files", "data",
+    "code", "test", "tests", "project", "config", "output", "input",
+    "json", "xml", "yaml", "html", "css", "cli", "api", "url",
+    "github", "git", "npm", "pip", "docker", "http", "https",
+    "spdx", "readme", "changelog", "license",
+    "tabs", "source", "static", "many", "event", "which", "what",
+    "hard", "soft", "commit", "design", "sdk", "package", "module",
+    "separate", "rebuild", "ascii", "will", "most", "all", "some",
+    "it", "its", "our", "we", "they", "there", "here", "now",
+    "lowercase", "uppercase", "request-time", "run-time", "runtime",
+    "whether", "when", "where", "how", "why", "then", "just",
+    "only", "also", "very", "well", "much", "more", "less",
+    "work", "context", "patterns", "parity", "dynamic", "snapshot",
+    "quotes", "adapter", "tracker", "format", "parser", "handler",
 }
 
 
 _DRIFT_CMD_PATS = [
-    (re.compile(r"\bmake\s+\w+\b", re.I), ["Makefile", "makefile", "GNUmakefile"], "make"),
-    (re.compile(r"\bcargo\s+(test|build|run)\b", re.I), ["Cargo.toml"], "cargo"),
-    (re.compile(r"\bgradle\s+\w+\b", re.I), ["build.gradle", "build.gradle.kts"], "gradle"),
+    (re.compile(
+        r"\bmake\s+(test|build|install|clean|all|lint|check|deploy|run|dist|release|fmt|format)\b",
+        re.I,
+    ), ["Makefile", "makefile", "GNUmakefile"], "make"),
+    (re.compile(r"\bcargo\s+(test|build|run|check|clippy|fmt)\b", re.I), ["Cargo.toml"], "cargo"),
+    (re.compile(r"\bgradle\s+(test|build|run|check|assemble)\b", re.I),
+     ["build.gradle", "build.gradle.kts"], "gradle"),
 ]
 
 _DRIFT_TOOL_PATS = [
@@ -1210,7 +1240,8 @@ def _extract_project_deps(root: Path) -> set[str]:
 _BANNED_MODELS = re.compile(
     r"\b(text-davinci-\w+|code-davinci-\w+|gpt-3\.5-turbo|"
     r"claude-v1|claude-instant|claude-2\.\d|"
-    r"claude-3-opus|claude-3-sonnet|claude-3-haiku)\b", re.I,
+    r"claude-3-opus|claude-3-sonnet|claude-3-haiku|"
+    r"claude-3\.5-sonnet|claude-3\.5-haiku)\b", re.I,
 )
 
 _TAUTOLOGICAL_PATS = [
@@ -1220,7 +1251,7 @@ _TAUTOLOGICAL_PATS = [
 ]
 
 _PLACEHOLDER_TEXT_PATS = [
-    re.compile(r"\bTODO\b(?!\(\d\))"),
+    re.compile(r"\bTODO\b(?!\(\d+\))"),
     re.compile(r"\bFIXME\b"),
     re.compile(r"\[PLACEHOLDER\]|\[INSERT\s+\w+\]|\[YOUR\s+\w+\]", re.I),
 ]
@@ -1375,17 +1406,18 @@ def _check_agent_traps(result, content_text, lines, regions):
                 ))
                 found_trap003 = True
         if not found_trap004 and _TRAP_COUNT_PAT.search(line):
-            result.issues.append(Issue(
-                category="agent-safety", severity="suggestion",
-                message="Instruction asks the agent to count items"
-                " — LLMs are unreliable at precise counting",
-                fix="Use wc, grep -c, or a script for counting."
-                " Agents should call tools for counting, not count inline.",
-                rule_id="TRAP004", line=i + 1,
-            ))
-            found_trap004 = True
+            if not _TRAP_NEGATION_PAT.search(line):
+                result.issues.append(Issue(
+                    category="agent-safety", severity="suggestion",
+                    message="Instruction asks the agent to count items"
+                    " — LLMs are unreliable at precise counting",
+                    fix="Use wc, grep -c, or a script for counting."
+                    " Agents should call tools for counting, not count inline.",
+                    rule_id="TRAP004", line=i + 1,
+                ))
+                found_trap004 = True
         if not found_trap005 and _TRAP_RANDOM_PAT.search(line):
-            if not _TRAP_CRYPTO_PAT.search(line):
+            if not _TRAP_CRYPTO_PAT.search(line) and not _TRAP_NEGATION_PAT.search(line):
                 result.issues.append(Issue(
                     category="agent-safety", severity="suggestion",
                     message="Instruction asks the agent to generate"
@@ -1429,6 +1461,21 @@ def _check_drift(result, content_text, lines, regions, root, project_deps):
             if dep_name in _LANGUAGE_STOPLIST:
                 continue
             if dep_name in _ADJECTIVE_STOPLIST:
+                continue
+            if dep_name in _COMMON_WORD_STOPLIST:
+                continue
+            if len(dep_name) < 3:
+                continue
+            if dep_name.startswith(("re-", "pre-", "non-", "co-", "un-")):
+                continue
+            if "." in dep_name and not dep_name.startswith("@"):
+                continue
+            if dep_name.endswith((
+                "ing", "ed", "ly", "tion", "sion", "ment", "ness",
+                "able", "ible", "ous", "ive", "ful", "less", "ble",
+                "ary", "ery", "ory", "ure", "ence", "ance", "ant",
+                "tic", "tial", "case", "omy", "ity",
+            )):
                 continue
             if dep_name not in project_deps:
                 result.issues.append(Issue(
